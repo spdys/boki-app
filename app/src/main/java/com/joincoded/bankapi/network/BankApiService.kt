@@ -1,26 +1,24 @@
 package com.joincoded.bankapi.network
 
-import com.joincoded.bankapi.data.AmountChange
-import com.joincoded.bankapi.data.User
-import com.joincoded.bankapi.data.response.TokenResponse
-import com.joincoded.bankapi.utils.Constants
+import com.joincoded.bankapi.data.AuthenticationRequest
+import com.joincoded.bankapi.data.AuthenticationResponse
+import com.joincoded.bankapi.data.UserCreationRequest
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.Header
 import retrofit2.http.POST
-import retrofit2.http.PUT
-import retrofit2.http.Path
 
 interface BankApiService {
 
-    @POST(Constants.signupEndpoint)
-    suspend fun signup(@Body user: User): Response<TokenResponse>
+    // TODO: for pots controllers
 
+}
 
-    @PUT(Constants.depositEndpoint)
-    suspend fun deposit(@Header(Constants.authorization) token: String?,
-                        @Body amountChange: AmountChange
-    ): Response<Unit>
+interface AuthApiService {
 
+    // @POST("register")
+    // TODO need to change backend to make user registration return object instead of string
+
+    @POST("api/v1/users/auth/login")
+    suspend fun getToken(@Body authRequest: AuthenticationRequest) : Response<AuthenticationResponse>
 
 }
