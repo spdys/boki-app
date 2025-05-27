@@ -6,3 +6,8 @@ data class User(
     var image: String,
     var token: String?
 )
+
+data class UserCreationRequest(
+    val username: String,
+    val password: String
+)
