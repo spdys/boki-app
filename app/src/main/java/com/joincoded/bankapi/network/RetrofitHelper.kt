@@ -5,11 +5,18 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitHelper {
-    fun getInstance(): Retrofit {
+    fun getAuthInstance(): AuthApiService {
         return Retrofit.Builder()
-            .baseUrl(Constants.baseUrl)
+            .baseUrl(Constants.authBaseUrl)
             .addConverterFactory(GsonConverterFactory.create())
-            .build()
+            .build().create(AuthApiService::class.java)
+    }
+
+    fun getBankingInstance(): BankApiService {
+        return Retrofit.Builder()
+            .baseUrl(Constants.bankingBaseUrl)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build().create(BankApiService::class.java)
     }
 
 }
