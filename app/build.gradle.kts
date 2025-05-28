@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.joincoded.bankapi"
+    namespace = "com.joincoded.bokiapp"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.joincoded.bankapi"
+        applicationId = "com.joincoded.bokiapp"
         minSdk = 33
         targetSdk = 35
         versionCode = 1

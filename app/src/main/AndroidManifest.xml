@@ -11,13 +11,13 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.BankAPI"
+        android:theme="@style/Theme.BokiTheme"
         tools:targetApi="35">
         <activity
-            android:name=".MainActivity"
+            android:name="com.joincoded.bokiapp.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.BankAPI">
+            android:theme="@style/Theme.BokiTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
