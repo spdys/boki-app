@@ -1,26 +1,124 @@
 package com.joincoded.bankapi.network
 
-import com.joincoded.bankapi.data.AmountChange
-import com.joincoded.bankapi.data.User
-import com.joincoded.bankapi.data.response.TokenResponse
+import com.joincoded.bankapi.data.AccountResponse
+import com.joincoded.bankapi.data.AccountSummaryDto
+import com.joincoded.bankapi.data.AuthenticationRequest
+import com.joincoded.bankapi.data.AuthenticationResponse
+import com.joincoded.bankapi.data.CardPaymentRequest
+import com.joincoded.bankapi.data.CardPaymentResponse
+import com.joincoded.bankapi.data.CreateAccountRequest
+import com.joincoded.bankapi.data.KYCRequest
+import com.joincoded.bankapi.data.KYCResponse
+import com.joincoded.bankapi.data.PotDepositRequest
+import com.joincoded.bankapi.data.PotDepositResponse
+import com.joincoded.bankapi.data.PotRequest
+import com.joincoded.bankapi.data.PotResponse
+import com.joincoded.bankapi.data.PotTransferRequest
+import com.joincoded.bankapi.data.PotTransferResponse
+import com.joincoded.bankapi.data.TransactionHistoryRequest
+import com.joincoded.bankapi.data.TransactionHistoryResponse
+import com.joincoded.bankapi.data.UserCreationRequest
+import com.joincoded.bankapi.data.UserCreationResponse
 import com.joincoded.bankapi.utils.Constants
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
-import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface BankApiService {
 
-    @POST(Constants.signupEndpoint)
-    suspend fun signup(@Body user: User): Response<TokenResponse>
+    // KYC endpoints
+    @POST("/api/v1/kyc")
+    suspend fun submitKYC(
+        @Header(Constants.authorization) token: String?,
+        @Body kycRequest: KYCRequest
+    ): Response<KYCResponse>
+
+    @GET("/api/v1/kyc")
+    suspend fun getKYC(@Header(Constants.authorization) token: String?): Response<KYCResponse>
+
+    // Flag KYC omitted since its for admins only...
+
+    // Account endpoints
+    @POST("accounts/v1/create")
+    suspend fun createAccount(
+        @Header(Constants.authorization) token: String?,
+        @Body request: CreateAccountRequest
+    ): Response<AccountResponse>
+
+    @POST("/accounts/v1/{accountId}/pots")
+    suspend fun createPot(
+        @Header(Constants.authorization) token: String?,
+        @Path("accountId") accountId: Int,
+        request: PotRequest
+    ): PotResponse
+
+    @POST("/accounts/v1/{accountId}/pots/{potId}")
+    suspend fun editPot(
+        @Header(Constants.authorization) token: String?,
+        @Path("accountId") accountId: Int,
+        @Path("potId") potId: Int
+    ): PotResponse
+
+    @DELETE("/accounts/v1/{accountId}/pots/{potId}/delete")
+    suspend fun deletePot(
+        @Header(Constants.authorization) token: String?,
+        @Path("accountId") accountId: Int,
+        @Path("potId") potId: Int
+    ): Response<Void>
+
+    @GET("/accounts/v1/{accountId}/summary")
+    suspend fun getAccountSummary(
+        @Header(Constants.authorization) token: String?,
+        @Path("accountId") accountId: Int
+    ): AccountSummaryDto
+
+    // Close account omitted because for admins only but maybe in UI a user can request?
+
+    // Transactions endpoint
+    // TODO: Transfer transaction
+
+    // Deposit salary endpoint omitted
+
+    // Pot to main
+    @POST("transactions/v1/pot/withdrawal")
+    suspend fun withdrawalToAccount(
+        @Header(Constants.authorization) token: String?,
+        @Body request: PotTransferRequest
+    ): PotTransferResponse
+
+    // Deposit to pot
+    @POST("transactions/v1/pot/deposit")
+    suspend fun depositToPot(
+        @Header(Constants.authorization) token: String?,
+        @Body request: PotDepositRequest
+    ): PotDepositResponse
+
+    // card purchases / we might not use it
+    @POST("transactions/v1/purchase")
+    suspend fun purchaseFromCard(
+        @Header(Constants.authorization) token: String?,
+        @Body request: CardPaymentRequest
+    ): CardPaymentResponse
+
+    // History
+    @POST("transactions/v1/history")
+    suspend fun retrieveTransactionHistory(
+        @Header(Constants.authorization) token: String?,
+        @Body request: TransactionHistoryRequest
+    ) : Response<List<TransactionHistoryResponse>>
+
+    interface AuthApiService {
+
+        @POST("api/v1/users/register")
+        suspend fun registerUser(@Body creationRequest: UserCreationRequest): Response<UserCreationResponse>
 
 
-    @PUT(Constants.depositEndpoint)
-    suspend fun deposit(@Header(Constants.authorization) token: String?,
-                        @Body amountChange: AmountChange
-    ): Response<Unit>
+        @POST("api/v1/users/auth/login")
+        suspend fun getToken(@Body authRequest: AuthenticationRequest): Response<AuthenticationResponse>
 
-
+    }
 }
