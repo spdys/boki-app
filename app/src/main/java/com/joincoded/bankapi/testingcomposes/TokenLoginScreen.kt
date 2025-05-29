@@ -6,11 +6,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joincoded.bankapi.viewmodel.BankViewModel
 
 @Composable
-fun TokenLoginScreen(viewModel: BankViewModel = viewModel()) {
+fun TokenLoginScreen(viewModel: BankViewModel, loginSuccessful: () -> Unit) {
     val username = remember { mutableStateOf("testuser") }
     val password = remember { mutableStateOf("Password123") }
 
@@ -20,6 +19,9 @@ fun TokenLoginScreen(viewModel: BankViewModel = viewModel()) {
             .padding(16.dp),
         verticalArrangement = Arrangement.Center
     ) {
+        if (!viewModel.token.isNullOrEmpty()) {
+            loginSuccessful()
+        }
         OutlinedTextField(
             value = username.value,
             onValueChange = { username.value = it },
