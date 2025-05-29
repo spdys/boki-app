@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joincoded.bankapi.navigation.AppNavigation
 import com.joincoded.bankapi.testingcomposes.TokenLoginScreen
 import com.joincoded.bankapi.ui.theme.BokiTheme
 
@@ -27,7 +28,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    TokenLoginScreen()
+                    AppNavigation()
                 }
             }
         }
