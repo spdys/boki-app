@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.joincoded.bankapi.navigation.AppNavigation
+import com.joincoded.bankapi.screens.LoginScreen
 import com.joincoded.bankapi.ui.theme.BankAPITheme
 
 
@@ -23,8 +24,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-
                     AppNavigation()
+//                    LoginScreen()
                 }
             }
         }
