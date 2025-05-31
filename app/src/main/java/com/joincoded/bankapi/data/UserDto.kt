@@ -1,11 +1,5 @@
 package com.joincoded.bankapi.data
 
-data class User(
-    var username: String,
-    var password: String,
-    var image: String,
-    var token: String?
-)
 
 data class TokenResponse(val token: String?) {
     fun getBearerToken(): String {

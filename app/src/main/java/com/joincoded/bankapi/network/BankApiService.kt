@@ -1,5 +1,6 @@
 package com.joincoded.bankapi.network
 
+
 import com.joincoded.bankapi.data.AccountResponse
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AuthenticationRequest
@@ -17,6 +18,8 @@ import com.joincoded.bankapi.data.PotTransferRequest
 import com.joincoded.bankapi.data.PotTransferResponse
 import com.joincoded.bankapi.data.TransactionHistoryRequest
 import com.joincoded.bankapi.data.TransactionHistoryResponse
+import com.joincoded.bankapi.data.TransferRequest
+import com.joincoded.bankapi.data.TransferResponse
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.data.UserCreationResponse
 import com.joincoded.bankapi.utils.Constants
@@ -26,6 +29,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+
 import retrofit2.http.Path
 
 interface BankApiService {
@@ -111,7 +115,15 @@ interface BankApiService {
         @Body request: TransactionHistoryRequest
     ) : Response<List<TransactionHistoryResponse>>
 
-    interface AuthApiService {
+    @POST("transactions/v1/transfer")
+    suspend fun transfer(
+        @Header(Constants.authorization) token: String?,
+        @Body request: TransferRequest
+    ) : Response<TransferResponse>
+
+}
+
+interface AuthApiService {
 
         @POST("api/v1/users/register")
         suspend fun registerUser(@Body creationRequest: UserCreationRequest): Response<UserCreationResponse>
@@ -121,4 +133,7 @@ interface BankApiService {
         suspend fun getToken(@Body authRequest: AuthenticationRequest): Response<AuthenticationResponse>
 
     }
-}
+
+
+
+

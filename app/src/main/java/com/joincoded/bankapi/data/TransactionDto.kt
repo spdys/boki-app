@@ -48,3 +48,14 @@ data class TransactionHistoryResponse(
     val description: String?,
     val createdAt: LocalDateTime
 )
+
+data class TransferRequest(
+    val sourceId: Long,
+    val destinationId: Long,
+    val amount: BigDecimal
+)
+
+data class TransferResponse(
+    val sourceId: Long,
+    val newBalanceAfter: BigDecimal,
+)
