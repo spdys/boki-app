@@ -18,6 +18,8 @@ import com.joincoded.bankapi.data.PotTransferRequest
 import com.joincoded.bankapi.data.PotTransferResponse
 import com.joincoded.bankapi.data.TransactionHistoryRequest
 import com.joincoded.bankapi.data.TransactionHistoryResponse
+import com.joincoded.bankapi.data.TransferRequest
+import com.joincoded.bankapi.data.TransferResponse
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.data.UserCreationResponse
 import com.joincoded.bankapi.utils.Constants
@@ -113,7 +115,15 @@ interface BankApiService {
         @Body request: TransactionHistoryRequest
     ) : Response<List<TransactionHistoryResponse>>
 
-    interface AuthApiService {
+    @POST("transactions/v1/transfer")
+    suspend fun transfer(
+        @Header(Constants.authorization) token: String?,
+        @Body request: TransferRequest
+    ) : Response<TransferResponse>
+
+}
+
+interface AuthApiService {
 
         @POST("api/v1/users/register")
         suspend fun registerUser(@Body creationRequest: UserCreationRequest): Response<UserCreationResponse>
@@ -123,5 +133,7 @@ interface BankApiService {
         suspend fun getToken(@Body authRequest: AuthenticationRequest): Response<AuthenticationResponse>
 
     }
+
 }
+
 
