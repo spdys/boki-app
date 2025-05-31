@@ -9,6 +9,7 @@ import com.joincoded.bankapi.data.AuthenticationRequest
 import com.joincoded.bankapi.data.KYCRequest
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.data.response.TokenResponse
+import com.joincoded.bankapi.data.response.getBearerToken
 import com.joincoded.bankapi.network.RetrofitHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
