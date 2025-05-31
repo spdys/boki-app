@@ -31,13 +31,13 @@ import retrofit2.http.Path
 interface BankApiService {
 
     // KYC endpoints
-    @POST("/api/v1/kyc")
+    @POST("api/v1/kyc")
     suspend fun submitKYC(
         @Header(Constants.authorization) token: String?,
         @Body kycRequest: KYCRequest
     ): Response<KYCResponse>
 
-    @GET("/api/v1/kyc")
+    @GET("api/v1/kyc")
     suspend fun getKYC(@Header(Constants.authorization) token: String?): Response<KYCResponse>
 
     // Flag KYC omitted since its for admins only...
@@ -49,28 +49,28 @@ interface BankApiService {
         @Body request: CreateAccountRequest
     ): Response<AccountResponse>
 
-    @POST("/accounts/v1/{accountId}/pots")
+    @POST("accounts/v1/{accountId}/pots")
     suspend fun createPot(
         @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int,
         request: PotRequest
     ): PotResponse
 
-    @POST("/accounts/v1/{accountId}/pots/{potId}")
+    @POST("accounts/v1/{accountId}/pots/{potId}")
     suspend fun editPot(
         @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int,
         @Path("potId") potId: Int
     ): PotResponse
 
-    @DELETE("/accounts/v1/{accountId}/pots/{potId}/delete")
+    @DELETE("accounts/v1/{accountId}/pots/{potId}/delete")
     suspend fun deletePot(
         @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int,
         @Path("potId") potId: Int
     ): Response<Void>
 
-    @GET("/accounts/v1/{accountId}/summary")
+    @GET("accounts/v1/{accountId}/summary")
     suspend fun getAccountSummary(
         @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int
