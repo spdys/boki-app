@@ -11,6 +11,7 @@ import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.data.response.TokenResponse
 import com.joincoded.bankapi.data.response.getBearerToken
 import com.joincoded.bankapi.network.RetrofitHelper
+import com.joincoded.bankapi.utils.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -53,6 +54,7 @@ class BankViewModel : ViewModel() {
                 token = response.body()?.token
                 _isLoading.value = false
                 _isSuccessful.value =true
+                SessionManager.token = token
             } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
@@ -91,7 +93,6 @@ class BankViewModel : ViewModel() {
             _isSuccessful.value = false
             try {
                 val response = apiBankService.submitKYC(
-                    TokenResponse(token).getBearerToken(),
                     KYCRequest(fullName, phone, email, civilId, address, dateOfBirth)
                 )
                 _isLoading.value = false
@@ -101,8 +102,6 @@ class BankViewModel : ViewModel() {
                 _isSuccessful.value = false
                 _error.value = e.message ?: "KYC submission failed"
             }
-
         }
-
     }
 }

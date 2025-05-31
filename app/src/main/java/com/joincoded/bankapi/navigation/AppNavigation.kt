@@ -14,7 +14,7 @@ import com.joincoded.bankapi.viewmodel.BankViewModel
 
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController(), viewModel: BankViewModel = viewModel()) {
-    NavHost(navController = navController, startDestination = Routes.registerationRoute ) {
+    NavHost(navController = navController, startDestination = Routes.registrationRoute ) {
         composable(Routes.loginRoute) {
 
                 TokenLoginScreen(viewModel, loginSuccessful = {
@@ -26,7 +26,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController(), vi
             Text("Home")
 
         }
-        composable(Routes.registerationRoute) {
+        composable(Routes.registrationRoute) {
             SimpleRegistrationScreen()
         }
     }
