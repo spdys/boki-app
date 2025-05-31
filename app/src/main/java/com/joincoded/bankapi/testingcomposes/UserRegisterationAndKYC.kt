@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +26,10 @@ import com.joincoded.bankapi.viewmodel.BankViewModel
 @Composable
 fun SimpleRegistrationScreen(viewModel: BankViewModel = viewModel()) {
     var showKYC by remember { mutableStateOf(false) }
+
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isSuccessful by viewModel.isSuccessful.collectAsState()
+    val error by viewModel.error.collectAsState()
 
     // Registration fields
     var username by remember { mutableStateOf("") }
@@ -48,87 +53,155 @@ fun SimpleRegistrationScreen(viewModel: BankViewModel = viewModel()) {
             // Registration Form
             Text("Register", style = MaterialTheme.typography.headlineMedium)
 
+            // Show loading state
+            if (isLoading) {
+                Text(
+                    text = "Loading...",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Show error state
+            error?.let {
+                Text(
+                    text = "Error: $it",
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            // Show success state
+            if (isSuccessful) {
+                Text(
+                    text = "Registration successful!",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
             TextField(
                 value = username,
                 onValueChange = { username = it },
                 label = { Text("Username") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
 
             TextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { password = it
+                    if (error != null) viewModel.clearStates()},
                 label = { Text("Password") },
                 modifier = Modifier.fillMaxWidth(),
-                visualTransformation = PasswordVisualTransformation()
+                visualTransformation = PasswordVisualTransformation(),
+                enabled = !isLoading
             )
 
             Button(
                 onClick = {
+                    viewModel.clearStates()
                     viewModel.register(username, password)
-                    viewModel.getToken(username, password)
-
-                    showKYC = true // Move to KYC after registration
+                    if (isSuccessful){
+                        viewModel.clearStates()
+                        viewModel.getToken(username, password)
+                    }
+                    if (isSuccessful)
+                        showKYC = true // Move to KYC after registration
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Register")
+                Text(if(isLoading) "Please wait..." else "Register")
             }
 
         } else {
             // KYC Form
             Text("KYC Information", style = MaterialTheme.typography.headlineMedium)
 
+            // Show loading state
+            if (isLoading) {
+                Text(
+                    text = "Submitting KYC...",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Show error state
+            error?.let {
+                Text(
+                    text = "Error: $it",
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            // Show success state
+            if (isSuccessful) {
+                Text(
+                    text = "KYC submitted successfully!",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
             TextField(
                 value = fullName,
-                onValueChange = { fullName = it },
+                onValueChange = { fullName = it
+                    if (error != null) viewModel.clearStates()},
                 label = { Text("Full Name") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
 
             TextField(
                 value = phone,
-                onValueChange = { phone = it },
+                onValueChange = { phone = it
+                    if (error != null) viewModel.clearStates()},
                 label = { Text("Phone") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
 
             TextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = { email = it
+                    if (error != null) viewModel.clearStates()},
                 label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
 
             TextField(
                 value = civilId,
-                onValueChange = { civilId = it },
+                onValueChange = { civilId = it
+                    if (error != null) viewModel.clearStates()},
                 label = { Text("Civil ID") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
 
             TextField(
                 value = address,
-                onValueChange = { address = it },
+                onValueChange = { address = it
+                    if (error != null) viewModel.clearStates()},
                 label = { Text("Address") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
 
             TextField(
                 value = dateOfBirth,
-                onValueChange = { dateOfBirth = it },
+                onValueChange = { dateOfBirth = it
+                    if (error != null) viewModel.clearStates()},
                 label = { Text("Date of Birth") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
 
             Button(
                 onClick = {
+                    viewModel.clearStates()
                     viewModel.submitKYC(fullName, phone, email, civilId, address, dateOfBirth)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             ) {
-                Text("Submit KYC")
-            }
+                Text(if (isLoading) "Please wait..." else "Submit KYC")            }
         }
     }
 }

@@ -17,6 +17,8 @@ import com.joincoded.bankapi.data.PotTransferRequest
 import com.joincoded.bankapi.data.PotTransferResponse
 import com.joincoded.bankapi.data.TransactionHistoryRequest
 import com.joincoded.bankapi.data.TransactionHistoryResponse
+import com.joincoded.bankapi.data.TransferRequest
+import com.joincoded.bankapi.data.TransferResponse
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.data.UserCreationResponse
 import com.joincoded.bankapi.utils.Constants
@@ -129,4 +131,3 @@ interface AuthApiService {
         suspend fun getToken(@Body authRequest: AuthenticationRequest): Response<AuthenticationResponse>
 
     }
-}
