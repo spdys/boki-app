@@ -7,12 +7,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joincoded.bankapi.navigation.AppNavigation
 import com.joincoded.bankapi.testingcomposes.TokenLoginScreen
-import com.joincoded.bankapi.ui.theme.BokiTheme
+import com.joincoded.bankapi.ui.theme.BankAPITheme
 
 
 class MainActivity : ComponentActivity() {
@@ -20,7 +19,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
 
-            BokiTheme  {
+            BankAPITheme  {
                 // A surface container using the 'background' color from the theme
 
                 Surface(
