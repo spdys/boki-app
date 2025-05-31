@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import com.joincoded.bankapi.viewmodel.BankViewModel
 @Composable
 fun SimpleRegistrationScreen(viewModel: BankViewModel = viewModel()) {
     var showKYC by remember { mutableStateOf(false) }
+    var registrationStep by remember { mutableStateOf("idle") }
 
     val isLoading by viewModel.isLoading.collectAsState()
     val isSuccessful by viewModel.isSuccessful.collectAsState()
@@ -43,6 +45,18 @@ fun SimpleRegistrationScreen(viewModel: BankViewModel = viewModel()) {
     var address by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf("") }
 
+    LaunchedEffect(isSuccessful, registrationStep) {
+        if (isSuccessful && registrationStep == "registering") {
+            // Registration successful, now get token
+            registrationStep = "getting_token"
+            viewModel.getToken(username, password)
+        } else if (isSuccessful && registrationStep == "getting_token") {
+            // Token successful, now show KYC
+            showKYC = true
+            registrationStep = "kyc"
+            viewModel.clearStates()
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -98,15 +112,9 @@ fun SimpleRegistrationScreen(viewModel: BankViewModel = viewModel()) {
             Button(
                 onClick = {
                     viewModel.clearStates()
-                    viewModel.register(username, password)
-                    if (isSuccessful){
-                        viewModel.clearStates()
-                        viewModel.getToken(username, password)
-                    }
-                    if (isSuccessful)
-                        showKYC = true // Move to KYC after registration
-                },
-                modifier = Modifier.fillMaxWidth()
+                    viewModel.register(username, password) },
+                    modifier = Modifier
+
             ) {
                 Text(if(isLoading) "Please wait..." else "Register")
             }
