@@ -1,5 +1,6 @@
 package com.joincoded.bankapi.network
 
+
 import com.joincoded.bankapi.data.AccountResponse
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AuthenticationRequest
@@ -28,6 +29,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+
 import retrofit2.http.Path
 
 interface BankApiService {
@@ -131,3 +133,7 @@ interface AuthApiService {
         suspend fun getToken(@Body authRequest: AuthenticationRequest): Response<AuthenticationResponse>
 
     }
+
+}
+
+

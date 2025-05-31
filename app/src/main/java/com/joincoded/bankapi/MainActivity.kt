@@ -11,25 +11,35 @@ import com.joincoded.bankapi.navigation.AppNavigation
 import com.joincoded.bankapi.screens.LoginScreen
 import com.joincoded.bankapi.ui.theme.BankAPITheme
 
+import com.joincoded.bankapi.viewmodel.UserViewModel
+import androidx.activity.viewModels
+
 
 class MainActivity : ComponentActivity() {
+
+    private val userViewModel: UserViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
 
             BankAPITheme  {
+              
                 // A surface container using the 'background' color from the theme
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavigation()
-//                    LoginScreen()
+
+                    LoginScreen(
+                        userViewModel = userViewModel,
+                        onLoginSuccess = { /* TODO: Navigate to home screen */ },
+                        navigateToPinLogin = { /* TODO: Navigate to PIN screen */ }
+                    )
+
                 }
             }
         }
     }
 }
-
-
