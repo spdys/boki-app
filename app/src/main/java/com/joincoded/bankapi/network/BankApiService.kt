@@ -54,14 +54,14 @@ interface BankApiService {
         @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int,
         request: PotRequest
-    ): PotResponse
+    ): Response<PotResponse>
 
     @POST("accounts/v1/{accountId}/pots/{potId}")
     suspend fun editPot(
         @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int,
         @Path("potId") potId: Int
-    ): PotResponse
+    ): Response<PotResponse>
 
     @DELETE("accounts/v1/{accountId}/pots/{potId}/delete")
     suspend fun deletePot(
@@ -74,7 +74,7 @@ interface BankApiService {
     suspend fun getAccountSummary(
         @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int
-    ): AccountSummaryDto
+    ): Response<AccountSummaryDto>
 
     // Close account omitted because for admins only but maybe in UI a user can request?
 
@@ -88,21 +88,21 @@ interface BankApiService {
     suspend fun withdrawalToAccount(
         @Header(Constants.authorization) token: String?,
         @Body request: PotTransferRequest
-    ): PotTransferResponse
+    ): Response<PotTransferResponse>
 
     // Deposit to pot
     @POST("transactions/v1/pot/deposit")
     suspend fun depositToPot(
         @Header(Constants.authorization) token: String?,
         @Body request: PotDepositRequest
-    ): PotDepositResponse
+    ): Response<PotDepositResponse>
 
     // card purchases / we might not use it
     @POST("transactions/v1/purchase")
     suspend fun purchaseFromCard(
         @Header(Constants.authorization) token: String?,
         @Body request: CardPaymentRequest
-    ): CardPaymentResponse
+    ): Response<CardPaymentResponse>
 
     // History
     @POST("transactions/v1/history")
