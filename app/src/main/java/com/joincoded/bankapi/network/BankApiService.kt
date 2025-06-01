@@ -53,25 +53,25 @@ interface BankApiService {
 
     @POST("accounts/v1/{accountId}/pots")
     suspend fun createPot(
-        @Path("accountId") accountId: Int,
+        @Path("accountId") accountId: Long,
         @Body request: PotRequest
     ): Response<PotResponse>
 
     @POST("accounts/v1/{accountId}/pots/{potId}")
     suspend fun editPot(
-        @Path("accountId") accountId: Int,
-        @Path("potId") potId: Int
+        @Path("accountId") accountId: Long,
+        @Path("potId") potId: Long
     ): Response<PotResponse>
 
     @DELETE("accounts/v1/{accountId}/pots/{potId}/delete")
     suspend fun deletePot(
-        @Path("accountId") accountId: Int,
-        @Path("potId") potId: Int
+        @Path("accountId") accountId: Long,
+        @Path("potId") potId: Long
     ): Response<Void>
 
     @GET("accounts/v1/{accountId}/summary")
     suspend fun getAccountSummary(
-        @Path("accountId") accountId: Int
+        @Path("accountId") accountId: Long
     ): Response<AccountSummaryDto>
 
     // Close account omitted because for admins only but maybe in UI a user can request?
