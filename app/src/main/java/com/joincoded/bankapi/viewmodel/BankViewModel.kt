@@ -6,7 +6,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.joincoded.bankapi.data.AccountSummaryDto
+import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AuthenticationRequest
+import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.network.RetrofitHelper
@@ -154,6 +156,48 @@ class BankViewModel : ViewModel() {
                 _isLoading.value = false
                 _isSuccessful.value = false
                 _error.value = e.message ?: "KYC submission failed"
+            }
+        }
+    }
+
+    fun autoCreateMainAccount() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val response = apiBankService.createAccount(
+                    CreateAccountRequest(accountType = AccountType.MAIN)
+                )
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create main account"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create main account"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun createSavingsAccount() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val response = apiBankService.createAccount(
+                    CreateAccountRequest(accountType = AccountType.SAVINGS)
+                )
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create savings account"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create savings account"
+            } finally {
+                _isLoading.value = false
             }
         }
     }

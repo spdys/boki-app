@@ -52,6 +52,7 @@ fun KYCScreen(
 
     LaunchedEffect(isSuccessful) {
         if (isSuccessful) {
+            bankViewModel.autoCreateMainAccount()
             delay(1500)
             bankViewModel.clearStates()
 
