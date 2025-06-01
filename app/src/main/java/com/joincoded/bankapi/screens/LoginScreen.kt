@@ -30,9 +30,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.joincoded.bankapi.R
-import com.joincoded.bankapi.ui.theme.BokiSoftGray
+import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.ui.theme.BokiTypography
-import com.joincoded.bankapi.viewmodel.UserViewModel
+import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.util.concurrent.Executor
 
 @Composable
@@ -43,13 +43,18 @@ fun getFragmentActivity(): FragmentActivity? {
 
 @Composable
 fun LoginScreen(
-    userViewModel: UserViewModel,
+    bankViewModel: BankViewModel,
     onLoginSuccess: () -> Unit,
     navigateToPinLogin: () -> Unit
 ) {
     val context = LocalContext.current
     val activity = getFragmentActivity()
     val executor: Executor = ContextCompat.getMainExecutor(context)
+
+    // Collect states from BankViewModel
+    val isLoading by bankViewModel.isLoading.collectAsState()
+    val isSuccessful by bankViewModel.isSuccessful.collectAsState()
+    val error by bankViewModel.error.collectAsState()
 
     val brush = Brush.verticalGradient(
         colors = listOf(Color(0xFF0A0D34), Color(0xFF141C58))
@@ -60,12 +65,17 @@ fun LoginScreen(
     var showErrorDialog by remember { mutableStateOf(false) }
     var showManualLoginTitle by remember { mutableStateOf(false) }
 
-    val fullName = userViewModel.kycResponse.value?.fullName
-    val firstName = fullName?.split(" ")?.firstOrNull()?.replaceFirstChar { it.uppercase() }
-    val greeting = if (!firstName.isNullOrBlank())
-        "Welcome To Your Virtual Wallet, $firstName!"
-    else
-        "Welcome To Your Virtual Wallet!"
+    // Handle successful authentication from token
+    LaunchedEffect(isSuccessful) {
+        if (isSuccessful) {
+            onLoginSuccess()
+            bankViewModel.clearStates()
+        }
+    }
+
+    // You can get user info from BankViewModel if needed
+    // For now using placeholder greeting
+    val greeting = "Welcome To Your Virtual Wallet!"
 
     val dragThreshold = with(LocalDensity.current) { 60.dp.toPx() }
     val loginSize: Dp by animateDpAsState(
@@ -81,6 +91,7 @@ fun LoginScreen(
     val biometricPrompt = activity?.let {
         BiometricPrompt(it, executor, object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                // You can add automatic token retrieval here if needed
                 onLoginSuccess()
             }
 
@@ -169,11 +180,18 @@ fun LoginScreen(
                             .background(loginGradient),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "login",
-                            style = BokiTypography.titleRegular.copy(fontSize = 16.sp),
-                            color = Color.White
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White
+                            )
+                        } else {
+                            Text(
+                                text = "login",
+                                style = BokiTypography.titleRegular.copy(fontSize = 16.sp),
+                                color = Color.White
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -196,20 +214,33 @@ fun LoginScreen(
                         modifier = Modifier
                             .size(60.dp)
                             .scale(fingerprintScale),
-                        tint = BokiSoftGray
+                        tint = BokiTheme.colors.surface
                     )
+
+                    // Show error from BankViewModel if any
+                    error?.let {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Error: $it",
+                            color = Color.Red,
+                            style = BokiTypography.titleRegular.copy(fontSize = 12.sp)
+                        )
+                    }
                 }
             }
         }
 
         if (showErrorDialog) {
             AlertDialog(
-                onDismissRequest = { showErrorDialog = false },
+                onDismissRequest = {
+                    showErrorDialog = false
+                    bankViewModel.clearStates()
+                },
                 icon = {
                     Icon(
                         painter = painterResource(id = R.drawable.error),
                         contentDescription = "Error Icon",
-                        tint = BokiSoftGray
+                        tint = BokiTheme.colors.surface
                     )
                 },
                 title = { Text("Biometric Login Failed") },
@@ -218,6 +249,7 @@ fun LoginScreen(
                     if (failedAttempts < 2) {
                         Button(onClick = {
                             showErrorDialog = false
+                            bankViewModel.clearStates()
                             biometricPrompt?.authenticate(promptInfo)
                         }) {
                             Text("Try Again")
@@ -227,6 +259,7 @@ fun LoginScreen(
                 dismissButton = {
                     Button(onClick = {
                         showErrorDialog = false
+                        bankViewModel.clearStates()
                         navigateToPinLogin()
                     }) {
                         Text("Login Manually")

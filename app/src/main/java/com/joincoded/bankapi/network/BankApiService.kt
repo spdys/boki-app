@@ -18,6 +18,8 @@ import com.joincoded.bankapi.data.PotTransferRequest
 import com.joincoded.bankapi.data.PotTransferResponse
 import com.joincoded.bankapi.data.TransactionHistoryRequest
 import com.joincoded.bankapi.data.TransactionHistoryResponse
+import com.joincoded.bankapi.data.TransferRequest
+import com.joincoded.bankapi.data.TransferResponse
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.data.UserCreationResponse
 import com.joincoded.bankapi.utils.Constants
@@ -33,50 +35,44 @@ import retrofit2.http.Path
 interface BankApiService {
 
     // KYC endpoints
-    @POST("/api/v1/kyc")
+    @POST("api/v1/kyc")
     suspend fun submitKYC(
-        @Header(Constants.authorization) token: String?,
-        @Body kycRequest: KYCRequest
+        @Body request: KYCRequest
     ): Response<KYCResponse>
 
-    @GET("/api/v1/kyc")
-    suspend fun getKYC(@Header(Constants.authorization) token: String?): Response<KYCResponse>
+    @GET("api/v1/kyc")
+    suspend fun getKYC(): Response<KYCResponse>
 
     // Flag KYC omitted since its for admins only...
 
     // Account endpoints
     @POST("accounts/v1/create")
     suspend fun createAccount(
-        @Header(Constants.authorization) token: String?,
         @Body request: CreateAccountRequest
     ): Response<AccountResponse>
 
-    @POST("/accounts/v1/{accountId}/pots")
+    @POST("accounts/v1/{accountId}/pots")
     suspend fun createPot(
-        @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int,
-        request: PotRequest
-    ): PotResponse
+        @Body request: PotRequest
+    ): Response<PotResponse>
 
-    @POST("/accounts/v1/{accountId}/pots/{potId}")
+    @POST("accounts/v1/{accountId}/pots/{potId}")
     suspend fun editPot(
-        @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int,
         @Path("potId") potId: Int
-    ): PotResponse
+    ): Response<PotResponse>
 
-    @DELETE("/accounts/v1/{accountId}/pots/{potId}/delete")
+    @DELETE("accounts/v1/{accountId}/pots/{potId}/delete")
     suspend fun deletePot(
-        @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int,
         @Path("potId") potId: Int
     ): Response<Void>
 
-    @GET("/accounts/v1/{accountId}/summary")
+    @GET("accounts/v1/{accountId}/summary")
     suspend fun getAccountSummary(
-        @Header(Constants.authorization) token: String?,
         @Path("accountId") accountId: Int
-    ): AccountSummaryDto
+    ): Response<AccountSummaryDto>
 
     // Close account omitted because for admins only but maybe in UI a user can request?
 
@@ -88,32 +84,35 @@ interface BankApiService {
     // Pot to main
     @POST("transactions/v1/pot/withdrawal")
     suspend fun withdrawalToAccount(
-        @Header(Constants.authorization) token: String?,
         @Body request: PotTransferRequest
-    ): PotTransferResponse
+    ): Response<PotTransferResponse>
 
     // Deposit to pot
     @POST("transactions/v1/pot/deposit")
     suspend fun depositToPot(
-        @Header(Constants.authorization) token: String?,
         @Body request: PotDepositRequest
-    ): PotDepositResponse
+    ): Response<PotDepositResponse>
 
     // card purchases / we might not use it
     @POST("transactions/v1/purchase")
     suspend fun purchaseFromCard(
-        @Header(Constants.authorization) token: String?,
         @Body request: CardPaymentRequest
-    ): CardPaymentResponse
+    ): Response<CardPaymentResponse>
 
     // History
     @POST("transactions/v1/history")
     suspend fun retrieveTransactionHistory(
-        @Header(Constants.authorization) token: String?,
         @Body request: TransactionHistoryRequest
     ) : Response<List<TransactionHistoryResponse>>
 
-    interface AuthApiService {
+    @POST("transactions/v1/transfer")
+    suspend fun transfer(
+        @Body request: TransferRequest
+    ) : Response<TransferResponse>
+
+}
+
+interface AuthApiService {
 
         @POST("api/v1/users/register")
         suspend fun registerUser(@Body creationRequest: UserCreationRequest): Response<UserCreationResponse>
@@ -123,5 +122,7 @@ interface BankApiService {
         suspend fun getToken(@Body authRequest: AuthenticationRequest): Response<AuthenticationResponse>
 
     }
-}
+
+
+
 
