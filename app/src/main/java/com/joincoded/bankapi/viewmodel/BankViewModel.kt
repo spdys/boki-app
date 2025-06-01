@@ -31,10 +31,6 @@ class BankViewModel : ViewModel() {
     val isLoggedIn = _isLoggedIn.asStateFlow()
 
 
-    // TODO: Account data
-//    private val _accountSummary = MutableStateFlow<AccountSummaryDto?>(null)
-//    val accountSummary = _accountSummary.asStateFlow()
-
     // API services
     private val apiAuthService = RetrofitHelper.getAuthInstance()
     private val apiBankService = RetrofitHelper.getBankingInstance()
@@ -84,14 +80,14 @@ class BankViewModel : ViewModel() {
                     _isLoggedIn.value = true
                     _isSuccessful.value = true
                 } else {
-                    _error.value = "Invalid response from server"
+                    _error.value = "Wrong credentials"
                 }
 
                 _isLoading.value = false
             } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
-                _error.value = e.message ?: "Failed to get token"
+                _error.value = e.message ?: "Failed to log in"
             }
         }
     }
@@ -135,6 +131,7 @@ class BankViewModel : ViewModel() {
                 )
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
+                    _isLoggedIn.value = true
                 } else {
                     _error.value = "KYC submission failed"
                 }
@@ -147,19 +144,4 @@ class BankViewModel : ViewModel() {
         }
     }
 
-    // TODO: Function to load account data (call after successful login)
-//    fun loadAccountData() {
-//        viewModelScope.launch {
-//            _isLoading.value = true
-//            try {
-//                // Add your API call to get account summary here
-//                // val response = apiBankService.getAccountSummary()
-//                // _accountSummary.value = response.body()
-//                _isLoading.value = false
-//            } catch (e: Exception) {
-//                _isLoading.value = false
-//                _error.value = e.message ?: "Failed to load account data"
-//            }
-//        }
-//    }
 }
