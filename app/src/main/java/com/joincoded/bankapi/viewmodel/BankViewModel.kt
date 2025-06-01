@@ -242,8 +242,7 @@ class BankViewModel : ViewModel() {
             try {
                 val response = apiBankService.getKYC()
                 if (response.isSuccessful) {
-                    userName = response.body()?.fullName
-                } else {
+                    userName = response.body()?.fullName?.split(" ")?.firstOrNull()                } else {
                     _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
                 }
                 _isLoading.value = false
