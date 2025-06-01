@@ -8,8 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.joincoded.bankapi.data.AuthenticationRequest
 import com.joincoded.bankapi.data.KYCRequest
 import com.joincoded.bankapi.data.UserCreationRequest
-import com.joincoded.bankapi.data.response.TokenResponse
-import com.joincoded.bankapi.data.response.getBearerToken
 import com.joincoded.bankapi.network.RetrofitHelper
 import com.joincoded.bankapi.utils.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,21 +26,44 @@ class BankViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
+    // Auth state
+    private val _isLoggedIn = MutableStateFlow(false)
+    val isLoggedIn = _isLoggedIn.asStateFlow()
+
+
+    // API services
+    private val apiAuthService = RetrofitHelper.getAuthInstance()
+    private val apiBankService = RetrofitHelper.getBankingInstance()
+
+    var token: String? by mutableStateOf(null)
+        private set
+
+    init {
+        // Check if user is already logged in when ViewModel is created
+        checkAuthState()
+    }
+
+    private fun checkAuthState() {
+        val savedToken = SessionManager.token
+        if (!savedToken.isNullOrEmpty()) {
+            token = savedToken
+            _isLoggedIn.value = true
+        }
+    }
+
     fun clearStates() {
         _isLoading.value = false
         _isSuccessful.value = false
         _error.value = null
     }
 
-    // Can then use these generic states in composable
-    /*
-
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-     */
-    private val apiAuthService = RetrofitHelper.getAuthInstance()
-    var token: String? by mutableStateOf(null)
-    private val apiBankService = RetrofitHelper.getBankingInstance()
+    fun logout() {
+        token = null
+        SessionManager.token = null
+        _isLoggedIn.value = false
+//        _accountSummary.value = null
+        clearStates()
+    }
 
     fun getToken(username: String, password: String) {
         viewModelScope.launch {
@@ -51,27 +72,40 @@ class BankViewModel : ViewModel() {
             _isSuccessful.value = false
             try {
                 val response = apiAuthService.getToken(AuthenticationRequest(username, password))
-                token = response.body()?.token
+                val responseToken = response.body()?.token
+
+                if (responseToken != null) {
+                    token = responseToken
+                    SessionManager.token = responseToken
+                    _isLoggedIn.value = true
+                    _isSuccessful.value = true
+                } else {
+                    _error.value = "Wrong credentials"
+                }
+
                 _isLoading.value = false
-                _isSuccessful.value =true
-                SessionManager.token = token
             } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
-                _error.value = e.message ?: "Failed to get token"            }
+                _error.value = e.message ?: "Failed to log in"
+            }
         }
     }
 
-    fun register(username: String, password: String){
+    fun register(username: String, password: String) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             _isSuccessful.value = false
             try {
                 val response = apiAuthService.registerUser(UserCreationRequest(username, password))
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                } else {
+                    _error.value = "Registration failed"
+                }
                 _isLoading.value = false
-                _isSuccessful.value = true
-            } catch (e: Exception){
+            } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
                 _error.value = e.message ?: "Registration failed"
@@ -95,13 +129,19 @@ class BankViewModel : ViewModel() {
                 val response = apiBankService.submitKYC(
                     KYCRequest(fullName, phone, email, civilId, address, dateOfBirth)
                 )
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    _isLoggedIn.value = true
+                } else {
+                    _error.value = "KYC submission failed"
+                }
                 _isLoading.value = false
-                _isSuccessful.value = true
-            } catch (e: Exception){
+            } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
                 _error.value = e.message ?: "KYC submission failed"
             }
         }
     }
+
 }

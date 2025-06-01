@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.joincoded.bankapi.R
-import com.joincoded.bankapi.ui.theme.BokiSoftGray
+import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.ui.theme.BokiTypography
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.util.concurrent.Executor
@@ -214,7 +214,7 @@ fun LoginScreen(
                         modifier = Modifier
                             .size(60.dp)
                             .scale(fingerprintScale),
-                        tint = BokiSoftGray
+                        tint = BokiTheme.colors.surface
                     )
 
                     // Show error from BankViewModel if any
@@ -240,7 +240,7 @@ fun LoginScreen(
                     Icon(
                         painter = painterResource(id = R.drawable.error),
                         contentDescription = "Error Icon",
-                        tint = BokiSoftGray
+                        tint = BokiTheme.colors.surface
                     )
                 },
                 title = { Text("Biometric Login Failed") },

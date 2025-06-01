@@ -112,8 +112,9 @@ fun SimpleRegistrationScreen(viewModel: BankViewModel = viewModel()) {
             Button(
                 onClick = {
                     viewModel.clearStates()
+                    registrationStep = "registering"
                     viewModel.register(username, password) },
-                    modifier = Modifier
+                    modifier = Modifier.fillMaxWidth()
 
             ) {
                 Text(if(isLoading) "Please wait..." else "Register")
