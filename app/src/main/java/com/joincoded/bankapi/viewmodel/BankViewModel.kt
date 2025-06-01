@@ -80,7 +80,7 @@ class BankViewModel : ViewModel() {
                     _isLoggedIn.value = true
                     _isSuccessful.value = true
                 } else {
-                    _error.value = "Wrong credentials"
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Wrong credentials"
                 }
 
                 _isLoading.value = false
@@ -102,7 +102,7 @@ class BankViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                 } else {
-                    _error.value = "Registration failed"
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Registration failed"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -133,7 +133,7 @@ class BankViewModel : ViewModel() {
                     _isSuccessful.value = true
                     _isLoggedIn.value = true
                 } else {
-                    _error.value = "KYC submission failed"
+                    _error.value = parseErrorBody(response.errorBody()) ?: "KYC submission failed"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
