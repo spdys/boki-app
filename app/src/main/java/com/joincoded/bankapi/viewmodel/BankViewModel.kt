@@ -81,6 +81,16 @@ class BankViewModel : ViewModel() {
         clearStates()
     }
 
+    fun getGreeting(): String {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        return when (hour) {
+            in 5..11 -> "Good morning"
+            in 12..16 -> "Good afternoon"
+            in 17..22 -> "Good evening"
+            else -> "Hello"
+        }
+    }
+
     fun getToken(username: String, password: String) {
         viewModelScope.launch {
             _isLoading.value = true
