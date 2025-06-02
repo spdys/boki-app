@@ -152,12 +152,12 @@ fun AccountSummaryScreen(
         }
 
         // Floating Transaction List (overlay at bottom)
-        if (transactions.isNotEmpty()) {
-            SwipeUpTransactionList(
-                transactions = transactions,
-                currency = accountSummary.currency
-            )
-        }
+//        if (transactions.isNotEmpty()) {
+//            SwipeUpTransactionList(
+//                transactions = transactions,
+//                currency = accountSummary.currency
+//            )
+//        }
     }
 }
 

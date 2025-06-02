@@ -11,6 +11,7 @@ class Routes {
         // Main app routes
         const val mainGraph = "main_graph"
         const val homeRoute = "home"
+        const val accountDetailsRoute = "accountDetails"
         const val quickPayRoute = "quick_pay"
         const val servicesRoute = "services"
     }
