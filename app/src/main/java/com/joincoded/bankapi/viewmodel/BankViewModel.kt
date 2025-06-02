@@ -6,10 +6,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.joincoded.bankapi.data.AccountResponse
+import com.joincoded.bankapi.data.AccountSummaryDto
+import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AuthenticationRequest
+import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.network.RetrofitHelper
+import com.joincoded.bankapi.network.RetrofitHelper.parseErrorBody
 import com.joincoded.bankapi.utils.SessionManager
 import com.joincoded.bankapi.utils.SharedPreferencesManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +23,7 @@ import kotlinx.coroutines.launch
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.math.BigDecimal
 
 class BankViewModel(application: Application) : AndroidViewModel(application) {
     private val context = getApplication<Application>().applicationContext
@@ -41,6 +47,18 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
     private val apiBankService = RetrofitHelper.getBankingInstance()
 
     var token: String? by mutableStateOf(null)
+        private set
+
+    var accountSummary by mutableStateOf<AccountSummaryDto?>(null)
+        private set
+
+    val totalBalance: BigDecimal
+        get() = allAccountSummaries.sumOf { it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO) }
+
+    //var userName by mutableStateOf<String?>(null)
+     //   private set
+
+    var allAccountSummaries by mutableStateOf<List<AccountSummaryDto>>(emptyList())
         private set
 
     init {
@@ -81,6 +99,16 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         clearStates()
     }
 
+    fun getGreeting(): String {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        return when (hour) {
+            in 5..11 -> "Good morning"
+            in 12..16 -> "Good afternoon"
+            in 17..22 -> "Good evening"
+            else -> "Hello"
+        }
+    }
+
     fun getToken(username: String, password: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -96,7 +124,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                     _isLoggedIn.value = true
                     _isSuccessful.value = true
                 } else {
-                    _error.value = "Invalid username or password!"
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Wrong credentials"
                 }
 
                 _isLoading.value = false
@@ -118,7 +146,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                 } else {
-                    _error.value = "Registration failed. Please try again."
+                    _error.value = "Registration failed"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -151,13 +179,119 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                     _isSuccessful.value = true
                     _isLoggedIn.value = true
                 } else {
-                    _error.value = "KYC submission failed. Please check your information!"
+                    _error.value = parseErrorBody(response.errorBody()) ?: "KYC submission failed. Please check your information!"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
                 _error.value = handleNetworkError(e)  // Enhanced error handling
+            }
+        }
+    }
+
+    fun autoCreateMainAccount() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val response = apiBankService.createAccount(
+                    CreateAccountRequest(accountType = AccountType.MAIN)
+                )
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create main account"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create main account"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun createSavingsAccount() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val response = apiBankService.createAccount(
+                    CreateAccountRequest(accountType = AccountType.SAVINGS)
+                )
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create savings account"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create savings account"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+//    fun getAccountSummary(accountId: Long) {
+//        viewModelScope.launch {
+//            _isLoading.value = true
+//            _error.value = null
+//            _isSuccessful.value = false
+//            try {
+//                val response = apiBankService.getAccountSummary(accountId)
+//                if (response.isSuccessful) {
+//                    accountSummary = response.body()
+//                    _isSuccessful.value = true
+//                } else {
+//                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch account summary"
+//                }
+//                _isLoading.value = false
+//            } catch (e: Exception) {
+//                _isLoading.value = false
+//                _isSuccessful.value = false
+//                _error.value = e.message ?: "Unable to fetch account summary"
+//            }
+//        }
+//    }
+
+    fun fetchAccountsAndSummary() {
+        viewModelScope.launch {
+            try {
+                val response = apiBankService.getAllAccounts()
+                if (response.isSuccessful) {
+                    val accounts = response.body() ?: emptyList()
+                    val summaries = accounts.mapNotNull { account ->
+                        val summaryResponse = apiBankService.getAccountSummary(account.id)
+                        if (summaryResponse.isSuccessful) summaryResponse.body() else null
+                    }
+                    allAccountSummaries = summaries
+                    val mainSummary = summaries.find { it.accountType == AccountType.MAIN }
+                    accountSummary = mainSummary
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to load accounts"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Could not load accounts"
+            }
+        }
+    }
+
+    fun getKYC() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val response = apiBankService.getKYC()
+                if (response.isSuccessful) {
+                    val fullName = response.body()?.fullName ?: ""
+                    SharedPreferencesManager.saveUserName(context, fullName)} else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
+                }
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _isLoading.value = false
+                _error.value = e.message ?: "Unable to fetch KYC info"
             }
         }
     }

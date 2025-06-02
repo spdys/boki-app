@@ -13,7 +13,7 @@ data class AccountResponse(
     val accountNumber: String,
     val accountType: AccountType,
     val balance: BigDecimal,
-    val createdAt: LocalDateTime
+    val createdAt: String
 )
 
 data class CloseAccountResponse(

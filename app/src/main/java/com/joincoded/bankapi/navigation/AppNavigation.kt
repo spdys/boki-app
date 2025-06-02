@@ -15,6 +15,7 @@ import androidx.navigation.compose.navigation
 import com.joincoded.bankapi.screens.KYCScreen
 import com.joincoded.bankapi.screens.ManualLoginScreen
 import com.joincoded.bankapi.screens.RegistrationScreen
+import com.joincoded.bankapi.screens.HomeScreen
 import com.joincoded.bankapi.utils.Routes
 import com.joincoded.bankapi.utils.SharedPreferencesManager
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -79,8 +80,7 @@ fun AppNavigation(
             route = Routes.mainGraph
         ) {
             composable(Routes.homeRoute) {
-                // TODO: replace with homepage when complete
-                Text("Homepage - Welcome! You're logged in!")
+                HomeScreen(viewModel)
             }
             composable(Routes.quickPayRoute) {
                 Text("Quick Pay Screen")
