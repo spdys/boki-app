@@ -4,7 +4,8 @@ class Routes {
     companion object {
         // Auth routes
         const val authGraph = "auth_graph"
-        const val loginRoute = "login"
+        const val loginRoute = "login" // Biometric login (LoginScreen)
+        const val manualLoginRoute = "manual_login" // Manual login fallback
         const val registrationRoute = "registration"
         const val kycRoute = "kyc"
 
@@ -14,4 +15,4 @@ class Routes {
         const val quickPayRoute = "quick_pay"
         const val servicesRoute = "services"
     }
-    }
+}
