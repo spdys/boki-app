@@ -2,7 +2,6 @@ package com.joincoded.bankapi.navigation
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -15,6 +14,7 @@ import com.joincoded.bankapi.screens.KYCScreen
 import com.joincoded.bankapi.screens.ManualLoginScreen
 import com.joincoded.bankapi.screens.RegistrationScreen
 import com.joincoded.bankapi.screens.HomeScreen
+import com.joincoded.bankapi.testingcomposes.AccountSummaryScreen
 import com.joincoded.bankapi.utils.Routes
 import com.joincoded.bankapi.viewmodel.BankViewModel
 
@@ -65,6 +65,13 @@ fun AppNavigation(
             composable(Routes.homeRoute) {
                 HomeScreen(viewModel)
             }
+
+            composable(Routes.accountDetailsRoute) {
+                viewModel.selectedAccount?.let {
+                    AccountSummaryScreen(accountSummary = it)
+                }
+            }
+
             composable(Routes.quickPayRoute) {
                 Text("Quick Pay Screen")
             }

@@ -1,5 +1,6 @@
 package com.joincoded.bankapi.screens
 
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,14 +18,21 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
+import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.PotSummaryDto
+import com.joincoded.bankapi.utils.Routes
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
 
 @Composable
-fun HomeScreen(bankViewModel: BankViewModel) {
+fun HomeScreen(
+    bankViewModel: BankViewModel,
+    navController: NavHostController = rememberNavController()
+) {
     val focusManager = LocalFocusManager.current
     val isLoading by bankViewModel.isLoading.collectAsState()
     val isSuccessful by bankViewModel.isSuccessful.collectAsState()
@@ -32,8 +40,8 @@ fun HomeScreen(bankViewModel: BankViewModel) {
     val isLoggedIn by bankViewModel.isLoggedIn.collectAsState()
 
     val userName by remember { derivedStateOf { bankViewModel.userName } }
-    val totalBalance by remember { derivedStateOf { bankViewModel.totalBalance ?: BigDecimal.ZERO } }
-    val currency by remember { derivedStateOf { bankViewModel.accountSummary?.currency ?: "KWD" } }
+    val totalBalance by remember { derivedStateOf { bankViewModel.totalBalance } }
+    val mainCurrency by remember { derivedStateOf { bankViewModel.mainAccountSummary?.currency ?: "KWD" } }
     var balanceVisible by remember { mutableStateOf(true) }
 
 
@@ -48,7 +56,7 @@ fun HomeScreen(bankViewModel: BankViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             if (isLoading) {
@@ -62,11 +70,11 @@ fun HomeScreen(bankViewModel: BankViewModel) {
                 )
                 BalanceOverviewCard(
                     totalBalance = totalBalance,
-                    currency = currency,
+                    currency = mainCurrency,
                     balanceVisible = balanceVisible,
                     onToggleVisibility = { balanceVisible = !balanceVisible }
                 )
-                SectionHeader(title = "Accounts") { /* see all accounts */ }
+                SectionHeader(title = "Accounts")
 
             }
         }
@@ -74,14 +82,14 @@ fun HomeScreen(bankViewModel: BankViewModel) {
         items(bankViewModel.allAccountSummaries.sortedBy { it.accountType != AccountType.MAIN }) { summary ->
             AccountCard(
                 account = summary,
-                onClick = { /* navigate */ },
+                onClick = { /* nav to that account summary */ },
                 balanceVisible = balanceVisible
             )
         }
 
-        bankViewModel.accountSummary?.pots?.takeIf { it.isNotEmpty() }?.let { pots ->
+        bankViewModel.mainAccountSummary?.pots?.takeIf { it.isNotEmpty() }?.let { pots ->
             item {
-                SectionHeader(title = "Pots") { /* see all pots */ }
+                SectionHeader(title = "Pots")
             }
             item {
                 LazyRow(
@@ -93,7 +101,7 @@ fun HomeScreen(bankViewModel: BankViewModel) {
                             pot = pot,
                             index = index,
                             balanceVisible = balanceVisible,
-                            currency = currency,
+                            currency = mainCurrency,
                             onClick = { /* nav */ }
                         )
                     }
@@ -144,7 +152,7 @@ private fun BalanceOverviewCard(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = if (balanceVisible) "${totalBalance.setScale(3)} $currency" else "••••••",
                 style = MaterialTheme.typography.headlineMedium,
@@ -156,10 +164,7 @@ private fun BalanceOverviewCard(
 
 
 @Composable
-private fun SectionHeader(
-    title: String,
-    onSeeAllClick: () -> Unit
-) {
+private fun SectionHeader(title: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -170,13 +175,6 @@ private fun SectionHeader(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-
-        TextButton(onClick = onSeeAllClick) {
-            Text(
-                text = "See all",
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
     }
 }
 
@@ -232,7 +230,18 @@ fun PotCard(
             Text(pot.name, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Text(
-                text = if (balanceVisible) "${pot.balance.setScale(3)} KWD" else "••••••"
+                text = if (balanceVisible) "${pot.balance.setScale(3)} $currency" else "••••••"
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            Text(
+                text = when (pot.allocationType) {
+                    AllocationType.PERCENTAGE -> "Percentage: ${(pot.allocationValue * BigDecimal(100)).setScale(0)}%"
+                    AllocationType.FIXED -> "Fixed: ${pot.allocationValue.stripTrailingZeros().toPlainString()} $currency"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
