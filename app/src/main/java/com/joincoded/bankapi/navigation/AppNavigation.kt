@@ -14,7 +14,8 @@ import com.joincoded.bankapi.screens.KYCScreen
 import com.joincoded.bankapi.screens.ManualLoginScreen
 import com.joincoded.bankapi.screens.RegistrationScreen
 import com.joincoded.bankapi.screens.HomeScreen
-import com.joincoded.bankapi.testingcomposes.AccountSummaryScreen
+import com.joincoded.bankapi.screens.PotSummaryScreen
+import com.joincoded.bankapi.screens.AccountSummaryScreen
 import com.joincoded.bankapi.utils.Routes
 import com.joincoded.bankapi.viewmodel.BankViewModel
 
@@ -63,13 +64,25 @@ fun AppNavigation(
             route = Routes.mainGraph
         ) {
             composable(Routes.homeRoute) {
-                HomeScreen(viewModel)
+                HomeScreen(
+                    viewModel = viewModel,
+                    onAccountClicked = { summary ->
+                        viewModel.selectAccountById(summary.accountId)
+                        navController.navigate(Routes.accountDetailsRoute)
+                    },
+                    onPotClicked = { summary ->
+                        viewModel.selectPot(summary)
+                        navController.navigate(Routes.potDetailsRoute)
+                    }
+                )
             }
 
             composable(Routes.accountDetailsRoute) {
-                viewModel.selectedAccount?.let {
-                    AccountSummaryScreen(accountSummary = it)
-                }
+                AccountSummaryScreen(viewModel = viewModel)
+            }
+
+            composable(Routes.potDetailsRoute){
+                PotSummaryScreen(viewModel = viewModel)
             }
 
             composable(Routes.quickPayRoute) {

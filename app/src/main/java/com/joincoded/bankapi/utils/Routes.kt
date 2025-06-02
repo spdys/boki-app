@@ -12,6 +12,7 @@ class Routes {
         const val mainGraph = "main_graph"
         const val homeRoute = "home"
         const val accountDetailsRoute = "accountDetails"
+        const val potDetailsRoute = "potDetails"
         const val quickPayRoute = "quick_pay"
         const val servicesRoute = "services"
     }
