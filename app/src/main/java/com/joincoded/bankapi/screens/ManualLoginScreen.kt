@@ -1,5 +1,6 @@
 package com.joincoded.bankapi.screens
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -25,36 +26,81 @@ fun ManualLoginScreen(
     val isLoading by bankViewModel.isLoading.collectAsState()
     val isSuccessful by bankViewModel.isSuccessful.collectAsState()
 
-    // Remember username from last login, while clear password
+    //  in-memory attempt tracking (no SharedPreferences needed)
+    var failedAttempts by remember { mutableIntStateOf(0) }
+    var isLocked by remember { mutableStateOf(false) }
+    var lockoutTimeRemaining by remember { mutableIntStateOf(0) }
+
+    // Remember username from last login, clear password
     var username by remember { mutableStateOf(SharedPreferencesManager.getLastUsername(context)) }
     var password by remember { mutableStateOf("") }
     var showValidationErrors by remember { mutableStateOf(false) }
 
-    // Get saved user's first name for greeting (from KYC data)
-    val savedName = SharedPreferencesManager.getSavedUserName(context)
+    //  saved user's first name for greeting
+    val savedName = SharedPreferencesManager.getFirstName(context)
     val greetingText = if (savedName.isNotEmpty()) {
         "Welcome to your virtual wallet, $savedName!"
     } else {
         "Welcome to your virtual wallet!"
     }
 
+    // Lockout countdown timer
+    LaunchedEffect(isLocked) {
+        if (isLocked && lockoutTimeRemaining > 0) {
+            while (lockoutTimeRemaining > 0) {
+                kotlinx.coroutines.delay(1000)
+                lockoutTimeRemaining--
+            }
+            // After lockout ends, restart the app for security
+            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP.or(Intent.FLAG_ACTIVITY_NEW_TASK))
+            context.startActivity(intent)
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
+    }
+
     LaunchedEffect(error) {
         error?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            // Handle login failure - increment attempts for credential errors only
+            if (it.contains("Wrong credentials", ignoreCase = true) ||
+                it.contains("Invalid", ignoreCase = true) ||
+                it.contains("credentials", ignoreCase = true)) {
+
+                failedAttempts++
+
+                when (failedAttempts) {
+                    1 -> {
+                        Toast.makeText(context, "Invalid credentials. 2 attempts remaining", Toast.LENGTH_LONG).show()
+                    }
+                    2 -> {
+                        Toast.makeText(context, "Invalid credentials. 1 attempt remaining", Toast.LENGTH_LONG).show()
+                    }
+                    3 -> {
+                        // Trigger lockout
+                        isLocked = true
+                        lockoutTimeRemaining = 3 // 3 seconds
+                        Toast.makeText(context, "Too many failed attempts. App will restart for security...", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } else {
+                // Network errors - don't count as attempts
+                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            }
             bankViewModel.clearStates()
         }
     }
 
     LaunchedEffect(isSuccessful) {
         if (isSuccessful) {
-            // Save username for next login
+            // Reset attempts on successful login
+            failedAttempts = 0
             SharedPreferencesManager.saveLastUsername(context, username.trim())
             onLoginSuccess()
             bankViewModel.clearStates()
         }
     }
 
-    // Input validation function
+    // Input validation
     fun validateAndLogin() {
         val trimmedUsername = username.trim()
         val trimmedPassword = password.trim()
@@ -82,21 +128,67 @@ fun ManualLoginScreen(
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
+        // Show lockout message if locked
+        if (isLocked) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Too many failed attempts",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Text(
+                        text = "App will restart in ${lockoutTimeRemaining}s",
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+        }
+
+        // Show attempts remaining warning
+        if (!isLocked && failedAttempts > 0 && failedAttempts < 3) {
+            val attemptsRemaining = 3 - failedAttempts
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text(
+                    text = "Warning: $attemptsRemaining ${if (attemptsRemaining == 1) "attempt" else "attempts"} remaining",
+                    modifier = Modifier.padding(12.dp),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
         OutlinedTextField(
             value = username,
             onValueChange = {
                 username = it
-                // clear validation errors when user starts typing
                 if (showValidationErrors && it.trim().isNotEmpty()) {
                     showValidationErrors = false
                 }
             },
             label = { Text("Username") },
             modifier = Modifier.fillMaxWidth(),
-            isError = showValidationErrors && username.trim().isEmpty()
+            isError = showValidationErrors && username.trim().isEmpty(),
+            enabled = !isLocked
         )
 
-        // show username error if validation failed
         if (showValidationErrors && username.trim().isEmpty()) {
             Text(
                 text = "Username is required",
@@ -114,17 +206,16 @@ fun ManualLoginScreen(
             value = password,
             onValueChange = {
                 password = it
-                // clear validation errors when user starts typing
                 if (showValidationErrors && it.trim().isNotEmpty()) {
                     showValidationErrors = false
                 }
             },
             label = { Text("Password") },
             modifier = Modifier.fillMaxWidth(),
-            isError = showValidationErrors && password.trim().isEmpty()
+            isError = showValidationErrors && password.trim().isEmpty(),
+            enabled = !isLocked
         )
 
-        // show password error if validation failed
         if (showValidationErrors && password.trim().isEmpty()) {
             Text(
                 text = "Password is required",
@@ -141,12 +232,15 @@ fun ManualLoginScreen(
         Button(
             onClick = { validateAndLogin() },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            enabled = !isLoading && !isLocked
         ) {
-            Text(if (isLoading) "Logging in..." else "Login")
+            Text(
+                if (isLoading) "Logging in..."
+                else if (isLocked) "Locked"
+                else "Login"
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-
     }
 }
