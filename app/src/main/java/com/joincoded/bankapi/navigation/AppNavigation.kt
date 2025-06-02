@@ -16,7 +16,8 @@ import com.joincoded.bankapi.screens.LoginScreen // Biometric login
 import com.joincoded.bankapi.screens.ManualLoginScreen
 import com.joincoded.bankapi.screens.RegistrationScreen
 import com.joincoded.bankapi.screens.HomeScreen
-import com.joincoded.bankapi.testingcomposes.AccountSummaryScreen
+import com.joincoded.bankapi.screens.PotSummaryScreen
+import com.joincoded.bankapi.screens.AccountSummaryScreen
 import com.joincoded.bankapi.utils.Routes
 import com.joincoded.bankapi.utils.SharedPreferencesManager
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -98,7 +99,7 @@ fun AppNavigation(
             // KYC Screen (After registration)
             composable(Routes.kycRoute) {
                 KYCScreen(
-                    bankViewModel = viewModel,
+                    viewModel = viewModel,
                     onKYCSuccess = {
                         //  KYC completed → go to home
                         navController.navigate(Routes.mainGraph) {
@@ -115,13 +116,25 @@ fun AppNavigation(
             route = Routes.mainGraph
         ) {
             composable(Routes.homeRoute) {
-                HomeScreen(viewModel)
+                HomeScreen(
+                    viewModel = viewModel,
+                    onAccountClicked = { summary ->
+                        viewModel.selectAccountById(summary.accountId)
+                        navController.navigate(Routes.accountDetailsRoute)
+                    },
+                    onPotClicked = { summary ->
+                        viewModel.selectPot(summary)
+                        navController.navigate(Routes.potDetailsRoute)
+                    }
+                )
             }
 
             composable(Routes.accountDetailsRoute) {
-                viewModel.selectedAccount?.let {
-                    AccountSummaryScreen(accountSummary = it)
-                }
+                AccountSummaryScreen(viewModel = viewModel)
+            }
+
+            composable(Routes.potDetailsRoute){
+                PotSummaryScreen(viewModel = viewModel)
             }
 
             composable(Routes.quickPayRoute) {

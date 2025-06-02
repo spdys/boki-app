@@ -28,15 +28,15 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KYCScreen(
-    bankViewModel: BankViewModel,
+    viewModel: BankViewModel,
     onKYCSuccess: () -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    val error by bankViewModel.error.collectAsState()
-    val isLoading by bankViewModel.isLoading.collectAsState()
-    val isSuccessful by bankViewModel.isSuccessful.collectAsState()
+    val error by viewModel.error.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isSuccessful by viewModel.isSuccessful.collectAsState()
 
     // Form state
     var fullName by remember { mutableStateOf("") }
@@ -47,6 +47,8 @@ fun KYCScreen(
     var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
     var showValidationErrors by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    val hasCreatedMainAccount = remember { mutableStateOf(false) }
+
 
     // Date formatting helper
     fun formatDateFromMillis(millis: Long?): String {
@@ -69,10 +71,12 @@ fun KYCScreen(
 
     // Handle successful KYC
     LaunchedEffect(isSuccessful) {
-        if (isSuccessful) {
+        if (isSuccessful && !hasCreatedMainAccount.value) {
+            hasCreatedMainAccount.value = true
+            viewModel.autoCreateMainAccount()
             Toast.makeText(context, "KYC submitted successfully!", Toast.LENGTH_SHORT).show()
             onKYCSuccess()
-            bankViewModel.clearStates()
+            viewModel.clearStates()
         }
     }
 
@@ -100,7 +104,7 @@ fun KYCScreen(
                     Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                 }
             }
-            bankViewModel.clearStates()
+            viewModel.clearStates()
         }
     }
 
@@ -109,7 +113,7 @@ fun KYCScreen(
         showValidationErrors = true
         if (isFormValid) {
             showValidationErrors = false
-            bankViewModel.submitKYC(
+            viewModel.submitKYC(
                 fullName = fullName.trim(),
                 phone = phone.trim(),
                 email = email.trim(),

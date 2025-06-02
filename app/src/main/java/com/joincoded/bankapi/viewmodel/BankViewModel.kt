@@ -11,6 +11,7 @@ import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AuthenticationRequest
 import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
+import com.joincoded.bankapi.data.PotSummaryDto
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.network.RetrofitHelper
 import com.joincoded.bankapi.network.RetrofitHelper.parseErrorBody
@@ -53,6 +54,10 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
 
     var selectedAccount by mutableStateOf<AccountSummaryDto?>(null)
         private set
+
+    var selectedPot by mutableStateOf<PotSummaryDto?>(null)
+        private set
+
 
     val totalBalance: BigDecimal
         get() = allAccountSummaries.sumOf { it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO) }
@@ -259,6 +264,10 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    fun selectPot(pot: PotSummaryDto) {
+        selectedPot = pot
     }
 
     fun fetchAccountsAndSummary() {
