@@ -1,9 +1,10 @@
 package com.joincoded.bankapi.viewmodel
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
@@ -15,12 +16,17 @@ import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.network.RetrofitHelper
 import com.joincoded.bankapi.network.RetrofitHelper.parseErrorBody
 import com.joincoded.bankapi.utils.SessionManager
+import com.joincoded.bankapi.utils.SharedPreferencesManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.math.BigDecimal
 
-class BankViewModel : ViewModel() {
+class BankViewModel(application: Application) : AndroidViewModel(application) {
+    private val context = getApplication<Application>().applicationContext
 
     // General states that can be used across the app
     private val _isLoading = MutableStateFlow(false)
@@ -35,7 +41,6 @@ class BankViewModel : ViewModel() {
     // Auth state
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn = _isLoggedIn.asStateFlow()
-
 
     // API services
     private val apiAuthService = RetrofitHelper.getAuthInstance()
@@ -57,8 +62,8 @@ class BankViewModel : ViewModel() {
     val totalBalance: BigDecimal
         get() = allAccountSummaries.sumOf { it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO) }
 
-    var userName by mutableStateOf<String?>(null)
-        private set
+    //var userName by mutableStateOf<String?>(null)
+     //   private set
 
     var allAccountSummaries by mutableStateOf<List<AccountSummaryDto>>(emptyList())
         private set
@@ -82,11 +87,22 @@ class BankViewModel : ViewModel() {
         _error.value = null
     }
 
+    //  network error handling
+    private fun handleNetworkError(e: Exception): String {
+        return when (e) {
+            is UnknownHostException -> "No internet connection. Please check your network."
+            is ConnectException -> "Unable to connect to server. Please try again."
+            is SocketTimeoutException -> "Session timeout. Please try again."
+            else -> e.message ?: "Network error occurred."
+        }
+    }
+
     fun logout() {
         token = null
         SessionManager.token = null
         _isLoggedIn.value = false
-//        _accountSummary.value = null
+        // Clear all saved data
+        SharedPreferencesManager.clearAll(context)
         clearStates()
     }
 
@@ -122,7 +138,7 @@ class BankViewModel : ViewModel() {
             } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
-                _error.value = e.message ?: "Failed to log in"
+                _error.value = handleNetworkError(e)
             }
         }
     }
@@ -137,13 +153,13 @@ class BankViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                 } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Registration failed"
+                    _error.value = "Registration failed"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
-                _error.value = e.message ?: "Registration failed"
+                _error.value = handleNetworkError(e)  // Enhanced error handling
             }
         }
     }
@@ -165,16 +181,18 @@ class BankViewModel : ViewModel() {
                     KYCRequest(fullName, phone, email, civilId, address, dateOfBirth)
                 )
                 if (response.isSuccessful) {
+                    // Save the full name after successful KYC
+                    SharedPreferencesManager.saveUserName(context, fullName)
                     _isSuccessful.value = true
                     _isLoggedIn.value = true
                 } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "KYC submission failed"
+                    _error.value = parseErrorBody(response.errorBody()) ?: "KYC submission failed. Please check your information!"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
                 _isLoading.value = false
                 _isSuccessful.value = false
-                _error.value = e.message ?: "KYC submission failed"
+                _error.value = handleNetworkError(e)  // Enhanced error handling
             }
         }
     }
@@ -281,7 +299,8 @@ class BankViewModel : ViewModel() {
             try {
                 val response = apiBankService.getKYC()
                 if (response.isSuccessful) {
-                    userName = response.body()?.fullName?.split(" ")?.firstOrNull()                } else {
+                    val fullName = response.body()?.fullName ?: ""
+                    SharedPreferencesManager.saveUserName(context, fullName)} else {
                     _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
                 }
                 _isLoading.value = false
