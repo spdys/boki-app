@@ -39,22 +39,26 @@ fun KYCScreen(
     val error by bankViewModel.error.collectAsState()
     val isLoggedIn by bankViewModel.isLoggedIn.collectAsState()
 
+
     var fullName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var civilId by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf("") }
+    val hasCreatedMainAccount = remember { mutableStateOf(false) }
+
 
     val isFormValid = fullName.isNotBlank() && phone.isNotBlank() &&
             email.isNotBlank() && civilId.isNotBlank() &&
             address.isNotBlank() && dateOfBirth.isNotBlank()
 
     LaunchedEffect(isSuccessful) {
-        if (isSuccessful) {
+        if (isSuccessful && !hasCreatedMainAccount.value) {
+            bankViewModel.autoCreateMainAccount()
+            hasCreatedMainAccount.value = true
             delay(1500)
             bankViewModel.clearStates()
-
         }
     }
 
@@ -144,7 +148,7 @@ fun KYCScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-// In your KYC screen, replace the submit button section with:
+                    // In your KYC screen, replace the submit button section with:
                     if (isSuccessful) {
                         // Success Acknowledgment
                         Card(
