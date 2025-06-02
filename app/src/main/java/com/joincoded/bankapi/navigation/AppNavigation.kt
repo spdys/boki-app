@@ -99,7 +99,7 @@ fun AppNavigation(
             // KYC Screen (After registration)
             composable(Routes.kycRoute) {
                 KYCScreen(
-                    bankViewModel = viewModel,
+                    viewModel = viewModel,
                     onKYCSuccess = {
                         //  KYC completed → go to home
                         navController.navigate(Routes.mainGraph) {

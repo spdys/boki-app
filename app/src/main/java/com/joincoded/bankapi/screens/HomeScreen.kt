@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -22,6 +24,7 @@ import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.PotSummaryDto
+import com.joincoded.bankapi.utils.SharedPreferencesManager
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
 
@@ -31,13 +34,15 @@ fun HomeScreen(
     onAccountClicked: (AccountSummaryDto) -> Unit,
     onPotClicked: (PotSummaryDto) -> Unit
 ) {
-    val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    val scrollState = rememberScrollState()
+
     val isLoading by viewModel.isLoading.collectAsState()
     val isSuccessful by viewModel.isSuccessful.collectAsState()
     val error by viewModel.error.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
-    val userName by remember { derivedStateOf { viewModel.userName } }
+//    val userName by remember { derivedStateOf { viewModel.userName } }
     val totalBalance by remember { derivedStateOf { viewModel.totalBalance } }
     val mainCurrency by remember { derivedStateOf { viewModel.mainAccountSummary?.currency ?: "KWD" } }
     var balanceVisible by remember { mutableStateOf(true) }
@@ -64,7 +69,7 @@ fun HomeScreen(
             } else {
                 UserGreetingSection(
                     greeting = viewModel.getGreeting(),
-                    userName = userName ?: "User"
+                    userName = SharedPreferencesManager.getFirstName(context) ?: "User"
                 )
                 BalanceOverviewCard(
                     totalBalance = totalBalance,
