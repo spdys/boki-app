@@ -2,7 +2,6 @@ package com.joincoded.bankapi.navigation
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
@@ -13,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import com.joincoded.bankapi.screens.KYCScreen
+import com.joincoded.bankapi.screens.LoginScreen // Biometric login
 import com.joincoded.bankapi.screens.ManualLoginScreen
 import com.joincoded.bankapi.screens.RegistrationScreen
 import com.joincoded.bankapi.screens.HomeScreen
@@ -28,7 +28,7 @@ fun AppNavigation(
     val context = LocalContext.current
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
-    // smart routing: new users start at registration, existing users start at login
+    // Smart routing: new users start at registration, existing users start at biometric login
     val hasExistingUser = SharedPreferencesManager.hasExistingUser(context)
     val authStartDestination = if (hasExistingUser) Routes.loginRoute else Routes.registrationRoute
 
@@ -41,40 +41,74 @@ fun AppNavigation(
             startDestination = authStartDestination,
             route = Routes.authGraph
         ) {
+            // Biometric Login Screen (Primary for returning users)
             composable(Routes.loginRoute) {
-                ManualLoginScreen(
+                LoginScreen(
                     bankViewModel = viewModel,
                     onLoginSuccess = {
-                        // existing user logs in → direct to homepage
+                        // Successful biometric login → go to home
                         navController.navigate(Routes.mainGraph) {
                             popUpTo(Routes.authGraph) { inclusive = true }
                         }
                     },
-                    navigateToRegister = { navController.navigate(Routes.registrationRoute) }
+                    navigateToManualLogin = {
+                        // Biometric failed/user chose manual → go to manual login
+                        navController.navigate(Routes.manualLoginRoute)
+                    },
+                    navigateToRegister = {
+                        // No existing user → go to registration
+                        navController.navigate(Routes.registrationRoute)
+                    }
                 )
             }
 
+            // Manual Login Screen (Fallback from biometric)
+            composable(Routes.manualLoginRoute) {
+                ManualLoginScreen(
+                    bankViewModel = viewModel,
+                    onLoginSuccess = {
+                        // Successful manual login → go to home
+                        navController.navigate(Routes.mainGraph) {
+                            popUpTo(Routes.authGraph) { inclusive = true }
+                        }
+                    },
+                    navigateToRegister = {
+                        navController.navigate(Routes.registrationRoute)
+                    }
+                    //After 3 failed attempts, app restarts and goes back to biometric
+                )
+            }
+
+            // Registration Screen (For new users)
             composable(Routes.registrationRoute) {
                 RegistrationScreen(
                     bankViewModel = viewModel,
                     onRegistrationSuccess = {
-                        // new user signs up → direct to homepage
-                        navController.navigate(Routes.mainGraph) {
-                            popUpTo(Routes.authGraph) { inclusive = true }
-                        }
+                        // New user completes registration → go to KYC
+                        navController.navigate(Routes.kycRoute)
                     },
-                    navigateToLogin = { navController.navigate(Routes.loginRoute) }
+                    navigateToLogin = {
+                        // User has account → go to biometric login
+                        navController.navigate(Routes.loginRoute)
+                    }
                 )
             }
 
+            // KYC Screen (After registration)
             composable(Routes.kycRoute) {
                 KYCScreen(
                     bankViewModel = viewModel,
+                    onKYCSuccess = {
+                        //  KYC completed → go to home
+                        navController.navigate(Routes.mainGraph) {
+                            popUpTo(Routes.authGraph) { inclusive = true }
+                        }
+                    }
                 )
             }
         }
 
-        // main app navigation graph
+        // Main app navigation graph
         navigation(
             startDestination = Routes.homeRoute,
             route = Routes.mainGraph
