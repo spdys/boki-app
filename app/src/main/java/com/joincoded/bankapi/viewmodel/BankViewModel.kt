@@ -1,5 +1,7 @@
 package com.joincoded.bankapi.viewmodel
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -7,16 +9,33 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.joincoded.bankapi.data.AuthenticationRequest
 import com.joincoded.bankapi.data.KYCRequest
+import com.joincoded.bankapi.data.KYCResponse
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.network.RetrofitHelper
 import com.joincoded.bankapi.utils.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
-class BankViewModel : ViewModel() {
+class BankViewModel(application: Application) : AndroidViewModel(application) {
+    private val context = getApplication<Application>().applicationContext
 
     // General states that can be used across the app
+    private val sharedPrefs = context.getSharedPreferences("SharedPreferences", Application.MODE_PRIVATE)
+
+    fun saveUserName(userName: String) {
+        sharedPrefs.edit { putString("saved_username", userName) }
+    }
+
+    fun getSavedUserName(): String? {
+        return sharedPrefs.getString("saved_username", null)
+    }
+
+    fun clearSavedUserName() {
+        sharedPrefs.edit { remove("saved_username") } // for user logout or edge case resets
+    }
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
@@ -57,6 +76,21 @@ class BankViewModel : ViewModel() {
         _error.value = null
     }
 
+    private val _kycResponse = MutableStateFlow<KYCResponse?>(null)
+    val kycResponse = _kycResponse.asStateFlow()
+
+    fun getKYC() {
+        viewModelScope.launch {
+            try {
+                val response = apiBankService.getKYC()
+                if (response.isSuccessful) {
+                    _kycResponse.value = response.body()
+                }
+            } catch (e: Exception) {
+                // to handle error later
+            }
+        }
+    }
     fun logout() {
         token = null
         SessionManager.token = null
