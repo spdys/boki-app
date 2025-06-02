@@ -177,14 +177,6 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 Spacer(modifier = Modifier.height(120.dp))
             }
         }
-
-        // Floating Transaction List (overlay at bottom)
-//        if (transactions.isNotEmpty()) {
-//            SwipeUpTransactionList(
-//                transactions = transactions,
-//                currency = currency
-//            )
-//        }
     }
 }
 
@@ -226,49 +218,3 @@ private fun PotDetailRow(
         )
     }
 }
-
-//@Preview(showBackground = true)
-//@Composable
-//fun PotSummaryScreenPreview() {
-//    val samplePot = PotSummaryDto(
-//        potId = 1L,
-//        name = "Emergency Fund",
-//        balance = BigDecimal("2500.000"),
-//        cardToken = "1234567890123456",
-//        allocationType = AllocationType.PERCENTAGE,
-//        allocationValue = BigDecimal("15.0")
-//    )
-//
-//    val sampleTransactions = listOf(
-//        TransactionHistoryResponse(
-//            id = 1L,
-//            amount = BigDecimal("150.000"),
-//            transactionType = "DEPOSIT",
-//            description = "Automatic Allocation",
-//            createdAt = LocalDateTime.now().minusHours(2)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 2L,
-//            amount = BigDecimal("50.000"),
-//            transactionType = "WITHDRAWAL",
-//            description = "Emergency Expense",
-//            createdAt = LocalDateTime.now().minusDays(1)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 3L,
-//            amount = BigDecimal("200.000"),
-//            transactionType = "DEPOSIT",
-//            description = "Manual Transfer",
-//            createdAt = LocalDateTime.now().minusDays(3)
-//        )
-//    )
-//
-//    BankAPITheme {
-//        PotSummaryScreen(
-//            potSummary = samplePot,
-//            currency = "KWD",
-//            transactions = sampleTransactions,
-//            onNavigateBack = { /* Navigation back */ }
-//        )
-//    }
-//}

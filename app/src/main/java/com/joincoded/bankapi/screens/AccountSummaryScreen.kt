@@ -138,14 +138,6 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
-
-        // Floating Transaction List (overlay at bottom)
-//        if (transactions.isNotEmpty()) {
-//            SwipeUpTransactionList(
-//                transactions = transactions,
-//                currency = accountSummary.currency
-//            )
-//        }
     }
 }
 
@@ -261,75 +253,3 @@ fun PotCard(
         }
     }
 }
-
-//@Preview(showBackground = true)
-//@Composable
-//fun AccountSummaryScreenPreview() {
-//    val samplePots = listOf(
-//        PotSummaryDto(
-//            potId = 1L,
-//            name = "Emergency Fund",
-//            balance = BigDecimal("2500.00"),
-//            cardToken = "1234567890123456",
-//            allocationType = AllocationType.PERCENTAGE,
-//            allocationValue = BigDecimal("15.0")
-//        ),
-//        PotSummaryDto(
-//            potId = 2L,
-//            name = "Vacation Savings",
-//            balance = BigDecimal("1200.50"),
-//            cardToken = null,
-//            allocationType = AllocationType.FIXED,
-//            allocationValue = BigDecimal("200.00")
-//        ),
-//        PotSummaryDto(
-//            potId = 3L,
-//            name = "New Car Fund",
-//            balance = BigDecimal("850.75"),
-//            cardToken = "9876543210987654",
-//            allocationType = AllocationType.PERCENTAGE,
-//            allocationValue = BigDecimal("10.0")
-//        )
-//    )
-//
-//    val sampleAccount = AccountSummaryDto(
-//        accountId = 1L,
-//        accountNumber = "ACC123456789",
-//        accountType = AccountType.SAVINGS,
-//        balance = BigDecimal("15750.25"),
-//        cardNumber = "1234567890123456",
-//        currency = "USD",
-//        isActive = true,
-//        pots = samplePots
-//    )
-
-//    val sampleTransactions = listOf(
-//        TransactionHistoryResponse(
-//            id = 1L,
-//            amount = BigDecimal("250.000"),
-//            transactionType = "DEPOSIT",
-//            description = "Salary Payment",
-//            createdAt = LocalDateTime.now().minusHours(2)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 2L,
-//            amount = BigDecimal("45.500"),
-//            transactionType = "WITHDRAWAL",
-//            description = "Coffee Shop",
-//            createdAt = LocalDateTime.now().minusHours(5)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 3L,
-//            amount = BigDecimal("12.750"),
-//            transactionType = "DEBIT",
-//            description = "Grocery Store",
-//            createdAt = LocalDateTime.now().minusDays(1)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 4L,
-//            amount = BigDecimal("100.000"),
-//            transactionType = "TRANSFER",
-//            description = "Transfer to Savings",
-//            createdAt = LocalDateTime.now().minusDays(2)
-//        )
-//    )
