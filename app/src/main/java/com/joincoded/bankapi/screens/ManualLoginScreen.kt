@@ -25,9 +25,12 @@ fun ManualLoginScreen(
     val isLoading by bankViewModel.isLoading.collectAsState()
     val isSuccessful by bankViewModel.isSuccessful.collectAsState()
 
-    var username by remember { mutableStateOf("") }
+    // Remember username from last login, while clear password
+    var username by remember { mutableStateOf(SharedPreferencesManager.getLastUsername(context)) }
     var password by remember { mutableStateOf("") }
+    var showValidationErrors by remember { mutableStateOf(false) }
 
+    // Get saved user's first name for greeting (from KYC data)
     val savedName = SharedPreferencesManager.getSavedUserName(context)
     val greetingText = if (savedName.isNotEmpty()) {
         "Welcome to your virtual wallet, $savedName!"
@@ -44,12 +47,27 @@ fun ManualLoginScreen(
 
     LaunchedEffect(isSuccessful) {
         if (isSuccessful) {
-            val firstName = username.trim().split(" ").firstOrNull() ?: username
-            SharedPreferencesManager.saveUserName(context, firstName)
+            // Save username for next login
+            SharedPreferencesManager.saveLastUsername(context, username.trim())
             onLoginSuccess()
             bankViewModel.clearStates()
         }
     }
+
+    // Input validation function
+    fun validateAndLogin() {
+        val trimmedUsername = username.trim()
+        val trimmedPassword = password.trim()
+
+        if (trimmedUsername.isEmpty() || trimmedPassword.isEmpty()) {
+            showValidationErrors = true
+            return
+        }
+
+        showValidationErrors = false
+        bankViewModel.getToken(trimmedUsername, trimmedPassword)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,24 +84,62 @@ fun ManualLoginScreen(
 
         OutlinedTextField(
             value = username,
-            onValueChange = { username = it },
+            onValueChange = {
+                username = it
+                // clear validation errors when user starts typing
+                if (showValidationErrors && it.trim().isNotEmpty()) {
+                    showValidationErrors = false
+                }
+            },
             label = { Text("Username") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = showValidationErrors && username.trim().isEmpty()
         )
+
+        // show username error if validation failed
+        if (showValidationErrors && username.trim().isEmpty()) {
+            Text(
+                text = "Username is required",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 4.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = {
+                password = it
+                // clear validation errors when user starts typing
+                if (showValidationErrors && it.trim().isNotEmpty()) {
+                    showValidationErrors = false
+                }
+            },
             label = { Text("Password") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = showValidationErrors && password.trim().isEmpty()
         )
+
+        // show password error if validation failed
+        if (showValidationErrors && password.trim().isEmpty()) {
+            Text(
+                text = "Password is required",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 4.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { bankViewModel.getToken(username, password) },
+            onClick = { validateAndLogin() },
             modifier = Modifier.fillMaxWidth(),
             enabled = !isLoading
         ) {
@@ -92,8 +148,5 @@ fun ManualLoginScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        TextButton(onClick = navigateToRegister) {
-            Text("Don't have an account? Register")
-        }
     }
 }
