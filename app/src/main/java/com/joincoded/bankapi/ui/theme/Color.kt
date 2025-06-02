@@ -31,13 +31,31 @@ object BokiColors {
     val Error = Color(0xFFE53E3E)
     val Info = Color(0xFF3182CE)
 
-    // Pot Colors (for visual distinction)
-    val PotRed = listOf(Color(0xFFE53E3E), Color(0xFFC53030))
-    val PotGreen = listOf(Color(0xFF38A169), Color(0xFF2F855A))
-    val PotBlue = listOf(Color(0xFF3182CE), Color(0xFF2C5282))
-    val PotOrange = listOf(Color(0xFFD69E2E), Color(0xFFB7791F))
-    val PotPurple = listOf(Color(0xFF805AD5), Color(0xFF6B46C1))
-    val PotTeal = listOf(Color(0xFF319795), Color(0xFF2C7A7B))
+    // UPDATED: Sophisticated Card Colors for Quick Pay & Pot Management
+    // These replace the previous bright pot colors with neutral, sophisticated options
+    object SophisticatedCardColors {
+        // Professional Slate - Cool gray-blue
+        val Slate = listOf(Color(0xFF475569), Color(0xFF334155))
+
+        // Warm Stone - Natural neutral
+        val Stone = listOf(Color(0xFF57534E), Color(0xFF44403C))
+
+        // Cool Zinc - Modern neutral
+        val Zinc = listOf(Color(0xFF52525B), Color(0xFF3F3F46))
+
+        // Balanced Neutral - Classic gray
+        val Neutral = listOf(Color(0xFF525252), Color(0xFF404040))
+
+        // Warm Gray with hint of purple - Subtle warmth
+        val WarmGray = listOf(Color(0xFF6B5B73), Color(0xFF544C57))
+
+        // Cool Blue-Gray - Sophisticated corporate
+        val CoolBlueGray = listOf(Color(0xFF64748B), Color(0xFF475569))
+
+        // All colors array for easy access
+        val allColors = listOf(Slate, Stone, Zinc, Neutral, WarmGray, CoolBlueGray)
+    }
+
 
     // Card Colors
     val CardRed = listOf(Color(0xFF8C1515), Color(0xFFB02828))
@@ -45,7 +63,7 @@ object BokiColors {
     val CardTransparentLight = Color.Black.copy(alpha = 0.05f)
 }
 
-// Extended Color Scheme
+// Extended Color Scheme - UPDATED
 data class BokiColorScheme(
     // Material 3 Colors
     val primary: Color,
@@ -68,10 +86,14 @@ data class BokiColorScheme(
     val warning: Color,
     val info: Color,
     val divider: Color,
-    val potColors: List<List<Color>>
+
+    // UPDATED: Use sophisticated colors instead of bright pot colors
+    val potColors: List<List<Color>>,
+    // NEW: Quick Pay card colors (same as pot colors for consistency)
+    val quickPayCardColors: List<List<Color>>
 )
 
-// Dark Theme Colors
+// Dark Theme Colors - UPDATED
 val DarkBokiColors = BokiColorScheme(
     // Material 3
     primary = BokiColors.PrimaryDark,
@@ -94,17 +116,13 @@ val DarkBokiColors = BokiColorScheme(
     warning = BokiColors.Warning,
     info = BokiColors.Info,
     divider = Color.White.copy(alpha = 0.1f),
-    potColors = listOf(
-        BokiColors.PotRed,
-        BokiColors.PotGreen,
-        BokiColors.PotBlue,
-        BokiColors.PotOrange,
-        BokiColors.PotPurple,
-        BokiColors.PotTeal
-    )
+
+    // UPDATED: Use sophisticated card colors
+    potColors = BokiColors.SophisticatedCardColors.allColors,
+    quickPayCardColors = BokiColors.SophisticatedCardColors.allColors
 )
 
-// Light Theme Colors
+// Light Theme Colors - UPDATED
 val LightBokiColors = BokiColorScheme(
     // Material 3
     primary = BokiColors.PrimaryLight,
@@ -127,12 +145,8 @@ val LightBokiColors = BokiColorScheme(
     warning = BokiColors.Warning,
     info = BokiColors.Info,
     divider = Color.Black.copy(alpha = 0.1f),
-    potColors = listOf(
-        BokiColors.PotRed,
-        BokiColors.PotGreen,
-        BokiColors.PotBlue,
-        BokiColors.PotOrange,
-        BokiColors.PotPurple,
-        BokiColors.PotTeal
-    )
+
+    // UPDATED: Use sophisticated card colors for light theme too
+    potColors = BokiColors.SophisticatedCardColors.allColors,
+    quickPayCardColors = BokiColors.SophisticatedCardColors.allColors
 )

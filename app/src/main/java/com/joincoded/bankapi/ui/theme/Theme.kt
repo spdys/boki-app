@@ -35,10 +35,10 @@ val BokiMaterial3Shapes = Shapes(
     extraLarge = BokiShapes.extraLarge
 )
 
-// CompositionLocal for custom colors
+
 val LocalBokiColors = staticCompositionLocalOf { DarkBokiColors }
 
-// Helper extensions for easy access
+
 object BokiTheme {
     val colors: BokiColorScheme
         @Composable
@@ -56,10 +56,24 @@ object BokiTheme {
         @Composable
         get() = Brush.horizontalGradient(colors.cardAccent)
 
+
     @Composable
     fun potGradient(index: Int): Brush {
         val potColors = colors.potColors[index % colors.potColors.size]
         return Brush.verticalGradient(potColors)
+    }
+
+    // Quick Pay card gradient function
+    @Composable
+    fun quickPayCardGradient(index: Int): Brush {
+        val cardColors = colors.quickPayCardColors[index % colors.quickPayCardColors.size]
+        return Brush.horizontalGradient(cardColors)
+    }
+
+
+    @Composable
+    fun getCardColors(index: Int): List<androidx.compose.ui.graphics.Color> {
+        return colors.quickPayCardColors[index % colors.quickPayCardColors.size]
     }
 }
 
@@ -108,14 +122,22 @@ fun BankAPITheme(
     }
 }
 
-// Usage Examples and Helper Functions
+// Usage Examples and Helper Functions - UPDATED
 object BokiColorUtils {
     /**
-     * Get pot color by index (cycles through available colors)
+     * Get pot color by index (cycles through available sophisticated colors)
      */
     @Composable
     fun getPotColors(index: Int): List<androidx.compose.ui.graphics.Color> {
         return BokiTheme.colors.potColors[index % BokiTheme.colors.potColors.size]
+    }
+
+    /**
+     * Get Quick Pay card colors by index
+     */
+    @Composable
+    fun getQuickPayCardColors(index: Int): List<androidx.compose.ui.graphics.Color> {
+        return BokiTheme.colors.quickPayCardColors[index % BokiTheme.colors.quickPayCardColors.size]
     }
 
     /**
@@ -133,45 +155,45 @@ object BokiColorUtils {
     fun getTextColorForBackground(isDark: Boolean): androidx.compose.ui.graphics.Color {
         return if (isDark) BokiColors.TextDark else BokiColors.TextLight
     }
-}
 
-/* 
-=== USAGE EXAMPLES ===
-
-@Composable
-fun MyScreen() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BokiTheme.gradient) // Use gradient background
-    ) {
-        Text(
-            text = "Account Balance",
-            style = BokiTheme.typography.headlineMedium,
-            color = BokiTheme.colors.onBackground
-        )
-        
-        Text(
-            text = "1000 KWD",
-            style = BokiTheme.typography.balanceDisplay,
-            color = BokiTheme.colors.onBackground
-        )
-        
-        Card(
-            shape = BokiTheme.shapes.card,
-            colors = CardDefaults.cardColors(
-                containerColor = BokiTheme.colors.cardBackground
-            )
-        ) {
-            // Card content
+    /**
+     * Get sophisticated color by name for user selection during pot creation
+     */
+    @Composable
+    fun getSophisticatedColorByName(colorName: String): List<androidx.compose.ui.graphics.Color> {
+        return when (colorName.lowercase()) {
+            "slate" -> BokiColors.SophisticatedCardColors.Slate
+            "stone" -> BokiColors.SophisticatedCardColors.Stone
+            "zinc" -> BokiColors.SophisticatedCardColors.Zinc
+            "neutral" -> BokiColors.SophisticatedCardColors.Neutral
+            "warm" -> BokiColors.SophisticatedCardColors.WarmGray
+            "cool" -> BokiColors.SophisticatedCardColors.CoolBlueGray
+            else -> BokiColors.SophisticatedCardColors.Slate // Default
         }
     }
 }
 
+/*
+=== UPDATED USAGE EXAMPLES ===
+
 @Composable
-fun PotCard(pot: PotSummaryDto, index: Int) {
+fun QuickPayCardExample() {
     Card(
-        modifier = Modifier.background(BokiTheme.potGradient(index)),
+        modifier = Modifier.background(BokiTheme.quickPayCardGradient(0)),
+        shape = BokiTheme.shapes.card
+    ) {
+        // Card content with sophisticated gradient
+    }
+}
+
+@Composable
+fun PotCardExample(pot: PotSummaryDto, index: Int) {
+    val potColors = BokiColorUtils.getPotColors(index)
+
+    Card(
+        modifier = Modifier.background(
+            brush = Brush.verticalGradient(potColors)
+        ),
         shape = BokiTheme.shapes.card
     ) {
         Text(
@@ -179,6 +201,20 @@ fun PotCard(pot: PotSummaryDto, index: Int) {
             style = BokiTheme.typography.cardLabel,
             color = BokiColorUtils.getTextColorForBackground(true)
         )
+    }
+}
+
+@Composable
+fun UserSelectableCardColorExample() {
+    // When user creates a pot, they can pick from these sophisticated options
+    val colorOptions = listOf("Slate", "Stone", "Zinc", "Neutral", "Warm", "Cool")
+    val selectedColor = "Slate" // User's choice
+    val cardColors = BokiColorUtils.getSophisticatedColorByName(selectedColor)
+
+    Card(
+        modifier = Modifier.background(Brush.horizontalGradient(cardColors))
+    ) {
+        // Pot with user-selected sophisticated color
     }
 }
 */
