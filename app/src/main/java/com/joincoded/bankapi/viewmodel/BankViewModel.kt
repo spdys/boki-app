@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.joincoded.bankapi.data.AccountResponse
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AuthenticationRequest
@@ -49,7 +48,10 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
     var token: String? by mutableStateOf(null)
         private set
 
-    var accountSummary by mutableStateOf<AccountSummaryDto?>(null)
+    var mainAccountSummary by mutableStateOf<AccountSummaryDto?>(null)
+        private set
+
+    var selectedAccount by mutableStateOf<AccountSummaryDto?>(null)
         private set
 
     val totalBalance: BigDecimal
@@ -232,28 +234,32 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
-//    fun getAccountSummary(accountId: Long) {
-//        viewModelScope.launch {
-//            _isLoading.value = true
-//            _error.value = null
-//            _isSuccessful.value = false
-//            try {
-//                val response = apiBankService.getAccountSummary(accountId)
-//                if (response.isSuccessful) {
-//                    accountSummary = response.body()
-//                    _isSuccessful.value = true
-//                } else {
-//                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch account summary"
-//                }
-//                _isLoading.value = false
-//            } catch (e: Exception) {
-//                _isLoading.value = false
-//                _isSuccessful.value = false
-//                _error.value = e.message ?: "Unable to fetch account summary"
-//            }
-//        }
-//    }
+    fun selectAccountById(accountId: Long) {
+        val localMatch = allAccountSummaries.find { it.accountId == accountId }
+        if (localMatch != null) {
+            selectedAccount = localMatch
+        } else {
+            viewModelScope.launch {
+                _isLoading.value = true
+                _error.value = null
+                _isSuccessful.value = false
+                try {
+                    val response = apiBankService.getAccountSummary(accountId)
+                    if (response.isSuccessful) {
+                        selectedAccount = response.body()
+                        _isSuccessful.value = true
+                    } else {
+                        _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch account summary"
+                    }
+                    _isLoading.value = false
+                } catch (e: Exception) {
+                    _isLoading.value = false
+                    _isSuccessful.value = false
+                    _error.value = e.message ?: "Unable to fetch account summary"
+                }
+            }
+        }
+    }
 
     fun fetchAccountsAndSummary() {
         viewModelScope.launch {
@@ -267,7 +273,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     allAccountSummaries = summaries
                     val mainSummary = summaries.find { it.accountType == AccountType.MAIN }
-                    accountSummary = mainSummary
+                    mainAccountSummary = mainSummary
                 } else {
                     _error.value = parseErrorBody(response.errorBody()) ?: "Failed to load accounts"
                 }

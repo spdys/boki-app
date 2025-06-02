@@ -16,6 +16,7 @@ import com.joincoded.bankapi.screens.LoginScreen // Biometric login
 import com.joincoded.bankapi.screens.ManualLoginScreen
 import com.joincoded.bankapi.screens.RegistrationScreen
 import com.joincoded.bankapi.screens.HomeScreen
+import com.joincoded.bankapi.testingcomposes.AccountSummaryScreen
 import com.joincoded.bankapi.utils.Routes
 import com.joincoded.bankapi.utils.SharedPreferencesManager
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -116,6 +117,13 @@ fun AppNavigation(
             composable(Routes.homeRoute) {
                 HomeScreen(viewModel)
             }
+
+            composable(Routes.accountDetailsRoute) {
+                viewModel.selectedAccount?.let {
+                    AccountSummaryScreen(accountSummary = it)
+                }
+            }
+
             composable(Routes.quickPayRoute) {
                 Text("Quick Pay Screen")
             }
