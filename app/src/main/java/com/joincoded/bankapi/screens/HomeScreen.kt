@@ -18,37 +18,35 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.PotSummaryDto
-import com.joincoded.bankapi.utils.Routes
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
 
 @Composable
 fun HomeScreen(
-    bankViewModel: BankViewModel,
-    navController: NavHostController = rememberNavController()
+    viewModel: BankViewModel,
+    onAccountClicked: (AccountSummaryDto) -> Unit,
+    onPotClicked: (PotSummaryDto) -> Unit
 ) {
     val focusManager = LocalFocusManager.current
-    val isLoading by bankViewModel.isLoading.collectAsState()
-    val isSuccessful by bankViewModel.isSuccessful.collectAsState()
-    val error by bankViewModel.error.collectAsState()
-    val isLoggedIn by bankViewModel.isLoggedIn.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isSuccessful by viewModel.isSuccessful.collectAsState()
+    val error by viewModel.error.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
-    val userName by remember { derivedStateOf { bankViewModel.userName } }
-    val totalBalance by remember { derivedStateOf { bankViewModel.totalBalance } }
-    val mainCurrency by remember { derivedStateOf { bankViewModel.mainAccountSummary?.currency ?: "KWD" } }
+    val userName by remember { derivedStateOf { viewModel.userName } }
+    val totalBalance by remember { derivedStateOf { viewModel.totalBalance } }
+    val mainCurrency by remember { derivedStateOf { viewModel.mainAccountSummary?.currency ?: "KWD" } }
     var balanceVisible by remember { mutableStateOf(true) }
 
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
-            bankViewModel.getKYC()
-            bankViewModel.fetchAccountsAndSummary()
+            viewModel.getKYC()
+            viewModel.fetchAccountsAndSummary()
         }
     }
 
@@ -65,7 +63,7 @@ fun HomeScreen(
                 Text(text = error ?: "Unknown error", color = MaterialTheme.colorScheme.error)
             } else {
                 UserGreetingSection(
-                    greeting = bankViewModel.getGreeting(),
+                    greeting = viewModel.getGreeting(),
                     userName = userName ?: "User"
                 )
                 BalanceOverviewCard(
@@ -79,15 +77,15 @@ fun HomeScreen(
             }
         }
 
-        items(bankViewModel.allAccountSummaries.sortedBy { it.accountType != AccountType.MAIN }) { summary ->
+        items(viewModel.allAccountSummaries.sortedBy { it.accountType != AccountType.MAIN }) { summary ->
             AccountCard(
                 account = summary,
-                onClick = { /* nav to that account summary */ },
+                onClick = onAccountClicked,
                 balanceVisible = balanceVisible
             )
         }
 
-        bankViewModel.mainAccountSummary?.pots?.takeIf { it.isNotEmpty() }?.let { pots ->
+        viewModel.mainAccountSummary?.pots?.takeIf { it.isNotEmpty() }?.let { pots ->
             item {
                 SectionHeader(title = "Pots")
             }
@@ -102,10 +100,7 @@ fun HomeScreen(
                             index = index,
                             balanceVisible = balanceVisible,
                             currency = mainCurrency,
-                            onClick = {
-                                bankViewModel.selectedPot = it
-                                navController.navigate(Routes.potDetailsRoute)
-                            }
+                            onClick = onPotClicked
                         )
                     }
                 }
@@ -184,13 +179,13 @@ private fun SectionHeader(title: String) {
 @Composable
 private fun AccountCard(
     account: AccountSummaryDto,
-    onClick: () -> Unit,
+    onClick: (AccountSummaryDto) -> Unit,
     balanceVisible: Boolean
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable { onClick(account) },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -218,10 +213,10 @@ private fun AccountCard(
 @Composable
 fun PotCard(
     pot: PotSummaryDto,
+    onClick: (PotSummaryDto) -> Unit,
     index: Int,
     currency: String,
     balanceVisible: Boolean,
-    onClick: (pot: PotSummaryDto) -> Unit
 ) {
     Card(
         modifier = Modifier

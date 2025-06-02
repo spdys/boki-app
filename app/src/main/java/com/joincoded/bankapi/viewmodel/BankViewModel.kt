@@ -51,7 +51,7 @@ class BankViewModel : ViewModel() {
         private set
 
     var selectedPot by mutableStateOf<PotSummaryDto?>(null)
-        internal set
+        private set
 
 
     val totalBalance: BigDecimal
@@ -246,6 +246,10 @@ class BankViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    fun selectPot(pot: PotSummaryDto) {
+        selectedPot = pot
     }
 
     fun fetchAccountsAndSummary() {
