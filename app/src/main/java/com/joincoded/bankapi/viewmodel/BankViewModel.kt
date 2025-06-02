@@ -218,59 +218,26 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createSavingsAccount() {
+    fun getKYC() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val response = apiBankService.createAccount(
-                    CreateAccountRequest(accountType = AccountType.SAVINGS)
-                )
+                val response = apiBankService.getKYC()
                 if (response.isSuccessful) {
-                    _isSuccessful.value = true
-                } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create savings account"
+                    val fullName = response.body()?.fullName ?: ""
+                    SharedPreferencesManager.saveUserName(context, fullName)} else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
                 }
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Unable to create savings account"
-            } finally {
                 _isLoading.value = false
+            } catch (e: Exception) {
+                _isLoading.value = false
+                _error.value = e.message ?: "Unable to fetch KYC info"
             }
         }
     }
 
-    fun selectAccountById(accountId: Long) {
-        val localMatch = allAccountSummaries.find { it.accountId == accountId }
-        if (localMatch != null) {
-            selectedAccount = localMatch
-        } else {
-            viewModelScope.launch {
-                _isLoading.value = true
-                _error.value = null
-                _isSuccessful.value = false
-                try {
-                    val response = apiBankService.getAccountSummary(accountId)
-                    if (response.isSuccessful) {
-                        selectedAccount = response.body()
-                        _isSuccessful.value = true
-                    } else {
-                        _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch account summary"
-                    }
-                    _isLoading.value = false
-                } catch (e: Exception) {
-                    _isLoading.value = false
-                    _isSuccessful.value = false
-                    _error.value = e.message ?: "Unable to fetch account summary"
-                }
-            }
-        }
-    }
-
-    fun selectPot(pot: PotSummaryDto) {
-        selectedPot = pot
-    }
-
-    fun fetchAccountsAndSummary() {
+    fun fetchAccountsAndSummaries() {
         viewModelScope.launch {
             try {
                 val response = apiBankService.getAllAccounts()
@@ -292,22 +259,33 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getKYC() {
+    fun selectAccount(account: AccountSummaryDto) {
+        selectedAccount = account
+    }
+
+    fun selectPot(pot: PotSummaryDto) {
+        selectedPot = pot
+    }
+
+    fun createSavingsAccount() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val response = apiBankService.getKYC()
+                val response = apiBankService.createAccount(
+                    CreateAccountRequest(accountType = AccountType.SAVINGS)
+                )
                 if (response.isSuccessful) {
-                    val fullName = response.body()?.fullName ?: ""
-                    SharedPreferencesManager.saveUserName(context, fullName)} else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
+                    _isSuccessful.value = true
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create savings account"
                 }
-                _isLoading.value = false
             } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create savings account"
+            } finally {
                 _isLoading.value = false
-                _error.value = e.message ?: "Unable to fetch KYC info"
             }
         }
     }
+
 }

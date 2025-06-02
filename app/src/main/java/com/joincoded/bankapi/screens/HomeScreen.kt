@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.joincoded.bankapi.data.AccountSummaryDto
@@ -51,7 +50,7 @@ fun HomeScreen(
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
             viewModel.getKYC()
-            viewModel.fetchAccountsAndSummary()
+            viewModel.fetchAccountsAndSummaries()
         }
     }
 
