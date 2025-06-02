@@ -74,6 +74,9 @@ interface BankApiService {
         @Path("accountId") accountId: Long
     ): Response<AccountSummaryDto>
 
+    @GET("accounts/v1/accounts")
+    suspend fun getAllAccounts(): Response<List<AccountResponse>>
+
     // Close account omitted because for admins only but maybe in UI a user can request?
 
     // Transactions endpoint
