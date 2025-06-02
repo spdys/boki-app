@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +27,12 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
         Text("No pot selected")
         return
     }
-    val currency by remember { derivedStateOf { viewModel.mainAccountSummary?.currency ?: "KWD" } }
+
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showConfirmationDialog by remember { mutableStateOf(false) }
+
+    val parentAccount by remember { derivedStateOf { viewModel.mainAccountSummary } }
+    val currency = parentAccount?.currency ?: "KWD"
 
 
     Box(
@@ -48,7 +54,12 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = BokiTheme.colors.background.copy(alpha = 0.95f)
-                )
+                ),
+                actions = {
+                    TextButton(onClick = { showEditDialog = true }) {
+                        Text("Edit", color = BokiTheme.colors.secondary)
+                    }
+                }
             )
 
             // Scrollable Content
@@ -73,7 +84,9 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                     )
                 ) {
                     Column(
-                        modifier = Modifier.padding(32.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // Pot Icon
@@ -156,7 +169,7 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         PotDetailRow(
-                            label = "Allocation Amount",
+                            label = "Allocation Value",
                             value = allocationText,
                             icon = Icons.Default.Savings
                         )
@@ -176,6 +189,93 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 // Add spacing for transaction overlay
                 Spacer(modifier = Modifier.height(120.dp))
             }
+        }
+
+        if (showEditDialog) {
+            var newName by remember { mutableStateOf(pot.name) }
+            var newType by remember { mutableStateOf(pot.allocationType) }
+            var newValue by remember { mutableStateOf(pot.allocationValue.toPlainString()) }
+            var validationError by remember { mutableStateOf<String?>(null) }
+
+            // Compute whether the form values have changed
+            val isFormChanged = newName != pot.name ||
+                    newType != pot.allocationType ||
+                    newValue != pot.allocationValue.toPlainString()
+
+            AlertDialog(
+                onDismissRequest = { showEditDialog = false },
+                title = { Text("Edit Pot") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = newName,
+                            onValueChange = { newName = it },
+                            label = { Text("Pot Name") },
+                            singleLine = true
+                        )
+                        DropdownMenuBox(
+                            selected = newType,
+                            onSelectedChange = { newType = it }
+                        )
+                        OutlinedTextField(
+                            value = newValue,
+                            onValueChange = { newValue = it },
+                            label = { Text("Allocation Value") },
+                            singleLine = true
+                        )
+                        if (validationError != null) {
+                            Text(
+                                text = validationError!!,
+                                color = BokiTheme.colors.error,
+                                style = BokiTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val value = newValue.toBigDecimalOrNull()
+                            val error = if (value != null) {
+                                viewModel.validatePotInputs(newName, value, newType, viewModel.selectedPot?.potId)
+                            } else {
+                                "Invalid number format"
+                            }
+                            if (error == null && value != null) {
+                                viewModel.editPot(newName, newType, value)
+                                showEditDialog = false
+                                showConfirmationDialog = true
+                            } else {
+                                validationError = error
+                            }
+                        },
+                        enabled = isFormChanged && validationError == null
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEditDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Confirmation dialog outside AlertDialog
+        if (showConfirmationDialog) {
+            AlertDialog(
+                onDismissRequest = { showConfirmationDialog = false },
+                title = { Text("Update Scheduled") },
+                text = {
+                    Text("Allocation changes will take effect on the next salary deposit. The current balance remains unchanged.")
+                },
+                confirmButton = {
+                    TextButton(onClick = { showConfirmationDialog = false }) {
+                        Text("OK")
+                    }
+                }
+            )
         }
     }
 }
@@ -216,5 +316,40 @@ private fun PotDetailRow(
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f)
         )
+    }
+}
+
+@Composable
+private fun DropdownMenuBox(
+    selected: AllocationType,
+    onSelectedChange: (AllocationType) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val options = AllocationType.values()
+
+    Box {
+        OutlinedTextField(
+            value = selected.name,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Allocation Type") },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                IconButton(onClick = { expanded = true }) {
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+            }
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { type ->
+                DropdownMenuItem(
+                    text = { Text(type.name) },
+                    onClick = {
+                        onSelectedChange(type)
+                        expanded = false
+                    }
+                )
+            }
+        }
     }
 }
