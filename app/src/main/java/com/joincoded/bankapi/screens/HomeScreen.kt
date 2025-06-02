@@ -102,7 +102,10 @@ fun HomeScreen(
                             index = index,
                             balanceVisible = balanceVisible,
                             currency = mainCurrency,
-                            onClick = { /* nav */ }
+                            onClick = {
+                                bankViewModel.selectedPot = it
+                                navController.navigate(Routes.potDetailsRoute)
+                            }
                         )
                     }
                 }
@@ -218,12 +221,12 @@ fun PotCard(
     index: Int,
     currency: String,
     balanceVisible: Boolean,
-    onClick: () -> Unit
+    onClick: (pot: PotSummaryDto) -> Unit
 ) {
     Card(
         modifier = Modifier
             .width(160.dp)
-            .clickable { onClick() },
+            .clickable { onClick(pot) },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

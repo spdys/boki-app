@@ -114,7 +114,8 @@ fun AccountSummaryScreen(
                         PotCard(
                             pot = accountSummary.pots[index],
                             currency = accountSummary.currency,
-                            index = index
+                            index = index,
+                            onClick = {  }
                         )
                     }
 
@@ -192,7 +193,8 @@ fun PotCard(
     pot: PotSummaryDto,
     currency: String,
     index: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -215,7 +217,10 @@ fun PotCard(
         colors = CardDefaults.cardColors(
             containerColor = BokiTheme.colors.cardBackground
         ),
-        onClick = { isExpanded = !isExpanded }
+        onClick = {
+            isExpanded = !isExpanded
+
+        }
     ) {
         Box(
             modifier = Modifier
