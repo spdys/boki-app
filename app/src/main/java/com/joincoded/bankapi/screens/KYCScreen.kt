@@ -12,14 +12,13 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -27,7 +26,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
-
 @Composable
 fun KYCScreen(
     bankViewModel: BankViewModel,
@@ -46,9 +44,17 @@ fun KYCScreen(
     var email by remember { mutableStateOf("") }
     var civilId by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var dateOfBirth by remember { mutableStateOf("") }
+    var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
     var showValidationErrors by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    // Date formatting helper
+    fun formatDateFromMillis(millis: Long?): String {
+        return millis?.let {
+            val formatter = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+            formatter.format(Date(it))
+        } ?: ""
+    }
 
     // Validation logic
     val isFullNameValid = fullName.trim().length >= 2
@@ -56,7 +62,7 @@ fun KYCScreen(
     val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
     val isCivilIdValid = civilId.length == 12 && civilId.all { it.isDigit() }
     val isAddressValid = address.trim().length >= 5
-    val isDateValid = dateOfBirth.isNotEmpty()
+    val isDateValid = selectedDateMillis != null
 
     val isFormValid = isFullNameValid && isPhoneValid && isEmailValid &&
             isCivilIdValid && isAddressValid && isDateValid
@@ -98,19 +104,7 @@ fun KYCScreen(
         }
     }
 
-    // Date picker state
-    val datePickerState = rememberDatePickerState()
-
-    // Handle date selection
-    LaunchedEffect(datePickerState.selectedDateMillis) {
-        datePickerState.selectedDateMillis?.let { millis ->
-            val formatter = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
-            dateOfBirth = formatter.format(Date(millis))
-            showDatePicker = false
-        }
-    }
-
-    // Validation function
+    // Validation and submit function
     fun validateAndSubmitKYC() {
         showValidationErrors = true
         if (isFormValid) {
@@ -121,7 +115,7 @@ fun KYCScreen(
                 email = email.trim(),
                 civilId = civilId.trim(),
                 address = address.trim(),
-                dateOfBirth = dateOfBirth
+                dateOfBirth = formatDateFromMillis(selectedDateMillis)
             )
         }
     }
@@ -307,17 +301,25 @@ fun KYCScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Date of Birth Field with Calendar
+        // Date of Birth Field with Calendar Icon
         OutlinedTextField(
-            value = dateOfBirth,
+            value = formatDateFromMillis(selectedDateMillis),
             onValueChange = { },
             label = { Text("Date of Birth") },
-            leadingIcon = {
-                Icon(Icons.Default.CalendarToday, contentDescription = "Date of Birth")
-            },
             placeholder = { Text("DD-MM-YYYY") },
-            modifier = Modifier.fillMaxWidth(),
             readOnly = true,
+            trailingIcon = {
+                IconButton(
+                    onClick = { showDatePicker = true },
+                    enabled = !isLoading
+                ) {
+                    Icon(
+                        Icons.Default.DateRange,
+                        contentDescription = "Select date"
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
             isError = showValidationErrors && !isDateValid,
             enabled = !isLoading
         )
@@ -331,16 +333,6 @@ fun KYCScreen(
                     .fillMaxWidth()
                     .padding(start = 16.dp, top = 4.dp)
             )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Date Picker Button
-        TextButton(
-            onClick = { showDatePicker = true },
-            enabled = !isLoading
-        ) {
-            Text("Select Date of Birth")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -362,25 +354,49 @@ fun KYCScreen(
         }
     }
 
-    // Date Picker Dialog
+    // Modal Date Picker
     if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("OK")
+        DatePickerModal(
+            onDateSelected = { dateMillis ->
+                selectedDateMillis = dateMillis
+                if (showValidationErrors && dateMillis != null) {
+                    showValidationErrors = false
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+            onDismiss = { showDatePicker = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DatePickerModal(
+    onDateSelected: (Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState()
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDateSelected(datePickerState.selectedDateMillis)
+                    onDismiss()
                 }
+            ) {
+                Text("OK")
             }
-        ) {
-            DatePicker(
-                state = datePickerState,
-                modifier = Modifier.padding(16.dp)
-            )
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
         }
+    ) {
+        DatePicker(
+            state = datePickerState,
+            modifier = Modifier.padding(16.dp)
+        )
     }
 }
