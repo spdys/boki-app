@@ -134,7 +134,13 @@ fun AppNavigation(
             }
 
             composable(Routes.potDetailsRoute){
-                PotSummaryScreen(viewModel = viewModel)
+                PotSummaryScreen(
+                    viewModel = viewModel,
+                    onDeleteClicked = {
+                        viewModel.deletePot()
+                        navController.navigate(Routes.homeRoute)
+                    }
+                )
             }
 
             composable(Routes.quickPayRoute) {

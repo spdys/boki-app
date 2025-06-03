@@ -43,7 +43,6 @@ fun HomeScreen(
     val error by viewModel.error.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
-//    val userName by remember { derivedStateOf { viewModel.userName } }
     val totalBalance by remember { derivedStateOf { viewModel.totalBalance } }
     val mainCurrency by remember { derivedStateOf { viewModel.mainAccountSummary?.currency ?: "KWD" } }
     var balanceVisible by remember { mutableStateOf(true) }
@@ -181,7 +180,7 @@ private fun BalanceOverviewCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (balanceVisible) "${totalBalance.setScale(3)} $currency" else "••••••",
+                text = if (balanceVisible) "${totalBalance.setScale(3)} $currency" else "•••••• $currency",
                 style = BokiTheme.typography.displaySmall,
                 color = BokiTheme.colors.onBackground,
                 fontWeight = FontWeight.Bold
@@ -236,7 +235,7 @@ private fun AccountCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (balanceVisible) "${account.balance.setScale(3)} ${account.currency}" else "••••••",
+                text = if (balanceVisible) "${account.balance.setScale(3)} ${account.currency}" else "•••••• ${account.currency}",
                 style = BokiTheme.typography.titleBold,
                 color = BokiTheme.colors.onBackground,
                 fontWeight = FontWeight.Bold
@@ -289,7 +288,7 @@ fun PotCard(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (balanceVisible) "${pot.balance.setScale(3)} $currency" else "••••••",
+                    text = if (balanceVisible) "${pot.balance.setScale(3)} $currency" else "•••••• $currency",
                     style = BokiTheme.typography.bodyLarge,
                     color = BokiTheme.colors.onBackground,
                     fontWeight = FontWeight.Medium

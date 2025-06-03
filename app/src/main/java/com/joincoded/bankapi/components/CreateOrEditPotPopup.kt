@@ -10,8 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.ui.theme.BokiTheme
-import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 @Composable
 fun CreateOrEditPotPopup(
@@ -19,11 +19,12 @@ fun CreateOrEditPotPopup(
     initialType: AllocationType = AllocationType.FIXED,
     initialValue: String = "0",
     currency: String = "KWD",
-    totalAllocatedText: String? = null,
+    totalAllocated: BigDecimal,
     showDialog: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (String, AllocationType, BigDecimal) -> Unit,
-    validateInput: (String, BigDecimal, AllocationType) -> String?
+    validateInput: (String, BigDecimal, AllocationType) -> String?,
+    onDelete: (() -> Unit)? = null,
 ) {
     if (!showDialog) return
 
@@ -33,6 +34,8 @@ fun CreateOrEditPotPopup(
     var errorText by remember { mutableStateOf<String?>(null) }
     var sliderPosition by remember { mutableFloatStateOf(valueText.toFloatOrNull() ?: 0f) }
     var showConfirmation by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
 
     val isFormChanged = name != initialName ||
             type != initialType ||
@@ -68,24 +71,30 @@ fun CreateOrEditPotPopup(
 
                     if (type == AllocationType.PERCENTAGE) {
                         LaunchedEffect(sliderPosition) {
-                            valueText = sliderPosition.toBigDecimal().toPlainString()
+                            valueText = sliderPosition.toBigDecimal()
+                                .setScale(2, RoundingMode.HALF_UP)
+                                .toPlainString()
                         }
 
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.fillMaxWidth()) {
                             Text("Allocation Percentage: ${(sliderPosition * 100).toInt()}%")
+
                             Slider(
-                                value = sliderPosition,
+                                value         = sliderPosition,
                                 onValueChange = { sliderPosition = it },
-                                valueRange = 0f..1f,
-                                steps = 19
+                                valueRange    = 0f..1f,
+                                steps         = 19
                             )
-                            totalAllocatedText?.let {
-                                Text(
-                                    text = it,
-                                    style = BokiTheme.typography.labelSmall,
-                                    color = BokiTheme.colors.textSecondary
-                                )
-                            }
+
+                            val total =
+                                if (onDelete != null) totalAllocated + sliderPosition.toBigDecimal()
+                                else totalAllocated          // static for create-mode
+
+                            Text(
+                                text  = "Total allocated so far: ${(total * BigDecimal(100)).toInt()}%",
+                                style = BokiTheme.typography.labelSmall,
+                                color = BokiTheme.colors.textSecondary
+                            )
                         }
                     } else {
                         Row(
@@ -118,21 +127,53 @@ fun CreateOrEditPotPopup(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        valueText.toBigDecimalOrNull()?.let {
-                            onConfirm(name, type, it)
-                            showConfirmation = true
+                if (onDelete != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { showDeleteConfirmation = true }) {
+                            Text("Delete", color = BokiTheme.colors.error)
                         }
-                    },
-                    enabled = isFormChanged && errorText == null
-                ) {
-                    Text("Save")
+
+                        Row {
+                            TextButton(onClick = onDismiss) {
+                                Text("Cancel")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(
+                                onClick = {
+                                    valueText.toBigDecimalOrNull()?.let {
+                                        onConfirm(name, type, it)
+                                        showConfirmation = true
+                                    }
+                                },
+                                enabled = isFormChanged && errorText == null
+                            ) {
+                                Text("Save")
+                            }
+                        }
+                    }
+                } else {
+                    TextButton(
+                        onClick = {
+                            valueText.toBigDecimalOrNull()?.let {
+                                onConfirm(name, type, it)
+                                showConfirmation = true
+                            }
+                        },
+                        enabled = isFormChanged && errorText == null
+                    ) {
+                        Text("Save")
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                if (onDelete == null) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
                 }
             }
         )
@@ -151,6 +192,41 @@ fun CreateOrEditPotPopup(
                     showConfirmation = false
                     onDismiss()
                 }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Confirm Deletion") },
+            text = { Text("Are you sure you want to delete this pot? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirmation = false
+                    deleteError = null
+                    onDelete?.invoke()
+                }) {
+                    Text("Delete", color = BokiTheme.colors.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (deleteError != null) {
+        AlertDialog(
+            onDismissRequest = { deleteError = null },
+            title = { Text("Delete Failed") },
+            text = { Text(deleteError!!) },
+            confirmButton = {
+                TextButton(onClick = { deleteError = null }) {
                     Text("OK")
                 }
             }

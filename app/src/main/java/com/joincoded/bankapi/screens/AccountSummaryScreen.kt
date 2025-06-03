@@ -1,7 +1,5 @@
 package com.joincoded.bankapi.screens
 
-import androidx.activity.compose.BackHandler
-import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.PotSummaryDto
@@ -214,11 +212,10 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
         if (showCreateDialog) {
             val totalAllocated = viewModel.mainAccountSummary?.pots
                 ?.filter { it.allocationType == AllocationType.PERCENTAGE }
-                ?.sumOf { it.allocationValue }
-                ?.let { "Total allocated so far: ${(it * BigDecimal(100)).toInt()}%" }
+                ?.sumOf { it.allocationValue } ?: BigDecimal.ZERO
 
             CreateOrEditPotPopup(
-                totalAllocatedText = totalAllocated,
+                totalAllocated = totalAllocated,
                 showDialog = showCreateDialog,
                 onDismiss = { showCreateDialog = false },
                 onConfirm = { name, type, value ->
@@ -226,7 +223,8 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                 },
                 validateInput = { name, value, type ->
                     viewModel.validatePotInputs(name, value, type, null)
-                }
+                },
+                onDelete = null
             )
         }
 
