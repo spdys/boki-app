@@ -41,6 +41,13 @@ data class TransactionHistoryRequest(
     val potId: Long? = null,
 )
 
+enum class TransactionType{
+    DEPOSIT,
+    WITHDRAW,
+    TRANSFER,
+    PURCHASE,
+}
+
 data class TransactionHistoryResponse(
     val id: Long,
     val amount: BigDecimal,

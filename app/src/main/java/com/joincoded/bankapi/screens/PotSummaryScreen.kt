@@ -14,7 +14,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joincoded.bankapi.components.AddToPotDialog
+import com.joincoded.bankapi.components.PotActionsCard
 import com.joincoded.bankapi.components.TransactionBottomSheet
+import com.joincoded.bankapi.components.TransactionSource
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -22,7 +26,7 @@ import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PotSummaryScreen(viewModel: BankViewModel) {
+fun PotSummaryScreen(viewModel: BankViewModel = viewModel()) {
     val pot = viewModel.selectedPot
     if (pot == null) {
         Text("No pot selected")
@@ -33,12 +37,18 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
     LaunchedEffect(pot.potId) {
         viewModel.getPotTransactionHistory()
     }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    val amount by viewModel.amount.collectAsState()
+    val amountError by viewModel.amountError.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     val showBottomSheet = remember { mutableStateOf(true) }
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
-        confirmValueChange = { false } // disables swipe/tap dismiss, but keeps back press functional
-    )
+        confirmValueChange = { newValue ->
+            newValue != SheetValue.Hidden // prevent hiding
+        }    )
 
     Box(
         modifier = Modifier
@@ -187,6 +197,25 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 // Add spacing for transaction overlay
                 Spacer(modifier = Modifier.height(120.dp))
 
+                PotActionsCard(
+                    onAddClick = { showAddDialog = true },
+                    modifier = Modifier.padding(16.dp)
+                )
+                AddToPotDialog(
+                    isVisible = showAddDialog,
+                    amount = amount,
+                    onAmountChange = { viewModel.updateAmount(it) },
+                    onConfirm = {
+                        viewModel.addToPot()
+                        showAddDialog = false
+                    },
+                    onDismiss = {
+                        showAddDialog = false
+                        viewModel.clearAmount() // Clear amount when dismissed
+                    },
+                    isLoading = isLoading,
+                    errorMessage = amountError
+                )
             }
         }
         if (showBottomSheet.value) {
@@ -195,7 +224,8 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 sheetState = bottomSheetState,
                 onDismiss = {
                     showBottomSheet.value = false
-                }
+                },
+                transactionSource = TransactionSource.POT
             )
         }
     }

@@ -1,14 +1,19 @@
 package com.joincoded.bankapi.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,8 +25,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joincoded.bankapi.data.TransactionHistoryResponse
+import com.joincoded.bankapi.data.TransactionType
 import com.joincoded.bankapi.ui.theme.BankAPITheme
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -29,16 +34,24 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+enum class TransactionSource {
+    POT,
+    ACCOUNT
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionBottomSheet(
     viewModel: BankViewModel,
     onDismiss: () -> Unit,
     sheetState: SheetState,
+    transactionSource: TransactionSource,
     modifier: Modifier = Modifier
 ) {
 
-    val transactions = viewModel.potTransactions ?: emptyList()
+    val transactions = when (transactionSource) {
+        TransactionSource.POT -> viewModel.potTransactions ?: emptyList()
+        TransactionSource.ACCOUNT -> viewModel.accountTransactions ?: emptyList()
+    }
     val currency: String = "KWD"
 
     ModalBottomSheet(
@@ -127,15 +140,39 @@ fun TransactionBottomSheet(
 }
 
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun TransactionCard(
     transaction: TransactionHistoryResponse,
     currency: String,
     modifier: Modifier = Modifier
 ) {
-    val transactionIcon = getTransactionIcon(transaction.transactionType)
-    val transactionColor = getTransactionColor(transaction.transactionType)
-    val amountPrefix = getAmountPrefix(transaction.transactionType)
+    // Inline transaction icon logic
+    val transactionIcon = when (transaction.transactionType) {
+        TransactionType.DEPOSIT.toString() -> Icons.Default.ArrowDownward
+        TransactionType.WITHDRAW.toString() -> Icons.Default.ArrowUpward
+        TransactionType.TRANSFER.toString() -> Icons.Default.SwapHoriz
+        TransactionType.PURCHASE.toString() -> Icons.Default.ShoppingCart
+        else -> Icons.Default.Help
+    }
+
+    // Inline transaction color logic
+    val transactionColor = when (transaction.transactionType) {
+        TransactionType.DEPOSIT.toString() -> Color(0xFF4CAF50) // Green
+        TransactionType.WITHDRAW.toString() -> Color(0xFFF44336) // Red
+        TransactionType.TRANSFER.toString() -> Color(0xFF2196F3) // Blue
+        TransactionType.PURCHASE.toString() -> Color(0xFFFF9800) // Orange
+        else -> Color.Gray
+    }
+
+    // Inline amount prefix logic
+    val amountPrefix = when (transaction.transactionType) {
+        TransactionType.DEPOSIT.toString() -> "+"
+        TransactionType.WITHDRAW.toString() -> "-"
+        TransactionType.TRANSFER.toString() -> ""
+        TransactionType.PURCHASE.toString() -> "-"
+        else -> ""
+    }
 
     Card(
         modifier = modifier
@@ -167,14 +204,14 @@ fun TransactionCard(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            transactionColor.copy(alpha = 0.1f),
-                            BokiTheme.shapes.circle
+                            color = Color.Gray.copy(alpha = 0.2f),
+                            shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = transactionIcon,
-                        contentDescription = transaction.transactionType,
+                        contentDescription = transaction.transactionType.toString(),
                         tint = transactionColor,
                         modifier = Modifier.size(24.dp)
                     )
@@ -185,7 +222,7 @@ fun TransactionCard(
                 // Transaction Details
                 Column {
                     Text(
-                        text = transaction.transactionType.replace("_", " ").uppercase(),
+                        text = transaction.transactionType.toString().replace("_", " "),
                         style = BokiTheme.typography.titleRegular,
                         color = BokiTheme.colors.onBackground,
                         maxLines = 1,
@@ -217,16 +254,15 @@ fun TransactionCard(
                 horizontalAlignment = Alignment.End
             ) {
                 Text(
-                    text = "$amountPrefix$currency ${String.format("%.3f", transaction.amount)}",
-                    style = BokiTheme.typography.transactionAmount,
+                    text = "$currency ${String.format("%.3f", transaction.amount)}",
                     color = transactionColor,
-                    textAlign = TextAlign.End
+                    textAlign = TextAlign.End,
+                    style = BokiTheme.typography.transactionAmount
                 )
             }
         }
     }
 }
-
 @Composable
 private fun EmptyTransactionState() {
     Card(

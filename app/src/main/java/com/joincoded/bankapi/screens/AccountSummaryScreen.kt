@@ -1,6 +1,7 @@
 package com.joincoded.bankapi.screens
 
 
+import androidx.activity.compose.BackHandler
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AllocationType
@@ -17,16 +18,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
+import com.joincoded.bankapi.components.TransactionBottomSheet
+import com.joincoded.bankapi.components.TransactionSource
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountSummaryScreen(viewModel: BankViewModel) {
     val account = viewModel.selectedAccount
     if (account == null) {
         Text("No account selected")
         return
+    }
+    val showBottomSheet = remember { mutableStateOf(true) }
+    val bottomSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false,
+        confirmValueChange = { newValue ->
+            newValue != SheetValue.Hidden // prevent hiding
+        }
+    )
+
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    LaunchedEffect(isLoggedIn) {
+        viewModel.getAccountTransactionHistory()
     }
 
     Box(
@@ -139,13 +155,17 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
             }
         }
 
-        // Floating Transaction List (overlay at bottom)
-//        if (transactions.isNotEmpty()) {
-//            SwipeUpTransactionList(
-//                transactions = transactions,
-//                currency = accountSummary.currency
-//            )
-//        }
+        if (showBottomSheet.value) {
+            TransactionBottomSheet(
+                viewModel = viewModel,
+                sheetState = bottomSheetState,
+                onDismiss = {
+                    showBottomSheet.value = false
+                },
+                transactionSource = TransactionSource.ACCOUNT
+            )
+        }
+
     }
 }
 

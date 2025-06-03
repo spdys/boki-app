@@ -1,16 +1,20 @@
 package com.joincoded.bankapi.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AuthenticationRequest
 import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
+import com.joincoded.bankapi.data.PotDepositRequest
 import com.joincoded.bankapi.data.PotSummaryDto
 import com.joincoded.bankapi.data.TransactionHistoryRequest
 import com.joincoded.bankapi.data.TransactionHistoryResponse
@@ -20,12 +24,14 @@ import com.joincoded.bankapi.network.RetrofitHelper.parseErrorBody
 import com.joincoded.bankapi.utils.SessionManager
 import com.joincoded.bankapi.utils.SharedPreferencesManager
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.math.BigDecimal
+import java.util.Calendar
 
 class BankViewModel(application: Application) : AndroidViewModel(application) {
     private val context = getApplication<Application>().applicationContext
@@ -61,6 +67,9 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var potTransactions by mutableStateOf<List<TransactionHistoryResponse>?>(null)
+        private set
+
+    var accountTransactions by mutableStateOf<List<TransactionHistoryResponse>?>(null)
         private set
 
 
@@ -114,7 +123,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun getGreeting(): String {
-        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         return when (hour) {
             in 5..11 -> "Good morning"
             in 12..16 -> "Good afternoon"
@@ -340,14 +349,112 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                     potTransactions = response.body()
+                    _isLoading.value = false
                 } else {
                     _error.value =
                         parseErrorBody(response.errorBody()) ?: "Failed to fetch pot transactions"
+                    _isLoading.value = false
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to fetch pot transactions"
+                _isLoading.value = false
             }
+        }
+    }
+
+    fun getAccountTransactionHistory() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = apiBankService.retrieveTransactionHistory(
+                    TransactionHistoryRequest(
+                        cardId = null,
+                        accountId = selectedAccount!!.accountId,
+                        potId = null
+                    )
+                )
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    accountTransactions = response.body()
+                } else {
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to fetch account transactions"
+                }
+            } catch (e: Exception){
+                _error.value = e.message ?: "Failed to fetch account transactions"
+
+            }
+        }
+    }
+
+    private val _amount = MutableStateFlow("")
+    val amount: StateFlow<String> = _amount.asStateFlow()
+
+    private val _amountError = MutableStateFlow<String?>(null)
+    val amountError: StateFlow<String?> = _amountError.asStateFlow()
+
+
+    fun clearAmount() {
+        _amount.value = ""
+        _amountError.value = null
+    }
+
+    fun updateAmount(newAmount: String) {
+        _amount.value = newAmount
+        // Clear error when user starts typing
+        if (_amountError.value != null) {
+            _amountError.value = null
+        }
+    }
+
+    fun addToPot() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val amountValue = validateAmount(amount.value ?: "")
+            if (amountValue != null) {
+                val response = apiBankService.depositToPot(PotDepositRequest(
+                    sourceAccountId = mainAccountSummary!!.accountId,
+                    destinationPotId = selectedPot!!.potId,
+                    amount = amountValue
+                ))
+                Log.d("AddToPot", "Response code: ${response.code()}")
+                Log.d("AddToPot", "Is successful: ${response.isSuccessful}")
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    _isLoading.value = false
+                    Log.d("AddToPot", "Body: ${response.body()}")
+
+
+                } else {
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed add funds to pot"
+                    _isLoading.value = false
+                }
+            }
+        }
+    }
+
+    private fun validateAmount(input: String): BigDecimal? {
+        return try {
+            val value = input.toBigDecimal()
+            when {
+                value <= BigDecimal.ZERO -> {
+                    _amountError.value = "Amount must be greater than 0"
+                    null
+                }
+                value > (selectedAccount?.balance ?: BigDecimal.ZERO) -> {
+                    _amountError.value = "Insufficient balance"
+                    null
+                }
+                else -> {
+                    _amountError.value = null
+                    value
+                }
+            }
+        } catch (e: NumberFormatException) {
+            _amountError.value = "Please enter a valid amount"
+            null
         }
     }
 }
