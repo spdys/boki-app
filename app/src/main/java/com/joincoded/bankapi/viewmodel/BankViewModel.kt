@@ -12,6 +12,8 @@ import com.joincoded.bankapi.data.AuthenticationRequest
 import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
 import com.joincoded.bankapi.data.PotSummaryDto
+import com.joincoded.bankapi.data.TransactionHistoryRequest
+import com.joincoded.bankapi.data.TransactionHistoryResponse
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.network.RetrofitHelper
 import com.joincoded.bankapi.network.RetrofitHelper.parseErrorBody
@@ -56,6 +58,9 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var selectedPot by mutableStateOf<PotSummaryDto?>(null)
+        private set
+
+    var potTransactions by mutableStateOf<List<TransactionHistoryResponse>?>(null)
         private set
 
 
@@ -307,6 +312,26 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _isLoading.value = false
                 _error.value = e.message ?: "Unable to fetch KYC info"
+            }
+        }
+    }
+
+    fun getPotTransactionHistory() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response =
+                    apiBankService.retrieveTransactionHistory(TransactionHistoryRequest(selectedPot!!.potId))
+                if (response.isSuccessful){
+                    _isSuccessful.value = true
+                    potTransactions = response.body()
+                } else{
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to fetch pot transactions"
+                }
+                _isLoading.value = false
+            } catch (e: Exception){
+                _error.value = e.message ?: "Failed to fetch pot transactions"
             }
         }
     }
