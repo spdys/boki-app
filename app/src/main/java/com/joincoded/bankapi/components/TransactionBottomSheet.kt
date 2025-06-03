@@ -20,9 +20,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joincoded.bankapi.data.TransactionHistoryResponse
 import com.joincoded.bankapi.ui.theme.BankAPITheme
 import com.joincoded.bankapi.ui.theme.BokiTheme
+import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -30,11 +32,13 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionBottomSheet(
-    transactions: List<TransactionHistoryResponse>,
-    currency: String = "KWD",
+    viewModel: BankViewModel = viewModel(),
+//    transactions: List<TransactionHistoryResponse>,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var transactions =  viewModel
+    val currency: String = "KWD"
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
@@ -119,9 +123,10 @@ fun TransactionBottomSheet(
 @Composable
 fun TransactionFloatingButton(
     transactions: List<TransactionHistoryResponse>,
-    currency: String = "KWD",
     modifier: Modifier = Modifier
 ) {
+    val  currency: String = "KWD"
+
     var showBottomSheet by remember { mutableStateOf(false) }
 
     // Floating Action Button to trigger bottom sheet
@@ -163,7 +168,6 @@ fun TransactionFloatingButton(
         if (showBottomSheet) {
             TransactionBottomSheet(
                 transactions = transactions,
-                currency = currency,
                 onDismiss = { showBottomSheet = false }
             )
         }
@@ -173,9 +177,9 @@ fun TransactionFloatingButton(
 @Composable
 fun TransactionCard(
     transaction: TransactionHistoryResponse,
-    currency: String,
     modifier: Modifier = Modifier
 ) {
+    val currency: String = "KWD"
     val transactionIcon = getTransactionIcon(transaction.transactionType)
     val transactionColor = getTransactionColor(transaction.transactionType)
     val amountPrefix = getAmountPrefix(transaction.transactionType)
@@ -388,7 +392,6 @@ fun TransactionFloatingButtonPreview() {
         ) {
             TransactionFloatingButton(
                 transactions = sampleTransactions,
-                currency = "KWD"
             )
         }
     }
