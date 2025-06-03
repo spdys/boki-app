@@ -1,5 +1,7 @@
 package com.joincoded.bankapi.screens
 
+import androidx.activity.compose.BackHandler
+import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.PotSummaryDto
@@ -16,10 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import com.joincoded.bankapi.components.CreateOrEditPotPopup
+import com.joincoded.bankapi.components.TransactionBottomSheet
+import com.joincoded.bankapi.components.TransactionSource
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountSummaryScreen(viewModel: BankViewModel) {
 
@@ -27,8 +32,41 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
 
     val account = viewModel.selectedAccount
     if (account == null) {
-        Text("No account selected")
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BokiTheme.gradient),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier.padding(24.dp),
+                shape = BokiTheme.shapes.card,
+                colors = CardDefaults.cardColors(
+                    containerColor = BokiTheme.colors.cardBackground
+                )
+            ) {
+                Text(
+                    text = "No account selected",
+                    color = BokiTheme.colors.onBackground,
+                    style = BokiTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(24.dp)
+                )
+            }
+        }
         return
+    }
+
+    val showBottomSheet = remember { mutableStateOf(true) }
+    val bottomSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false,
+        confirmValueChange = { newValue ->
+            newValue != SheetValue.Hidden // prevent hiding
+        }
+    )
+
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    LaunchedEffect(isLoggedIn) {
+        viewModel.getAccountTransactionHistory()
     }
 
     Box(
@@ -36,11 +74,13 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
             .fillMaxSize()
             .background(BokiTheme.gradient)
     ) {
+        // Main Account Summary Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp, vertical = 32.dp)
         ) {
+            // Header
             Text(
                 text = "Account Summary",
                 color = BokiTheme.colors.onBackground,
@@ -48,6 +88,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
+            // Account Details Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -65,6 +106,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                 Column(
                     modifier = Modifier.padding(24.dp)
                 ) {
+                    // Account Number
                     AccountDetailRow(
                         label = "Account Number",
                         value = account.accountNumber
@@ -83,6 +125,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         isBalance = true
                     )
 
+                    // Card Number (if available)
                     account.cardNumber?.let { cardNumber ->
                         AccountDetailRow(
                             label = "Card Number",
@@ -92,6 +135,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                 }
             }
 
+            // Pots Section
             if (!account.pots.isNullOrEmpty()) {
                 Text(
                     text = "Pots",
@@ -121,10 +165,13 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                             index = 0 // or assign index if needed
                         )
                     }
+
+                    // Add bottom padding to account for transaction overlay
                     item {
                         Spacer(modifier = Modifier.height(120.dp))
                     }
                 }
+                // Empty state for pots
             } else if (account.accountType == AccountType.MAIN) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -159,6 +206,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                     }
                 }
 
+                // Add spacer to push content up when no pots
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
@@ -179,6 +227,18 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                 validateInput = { name, value, type ->
                     viewModel.validatePotInputs(name, value, type, null)
                 }
+            )
+        }
+
+
+        // Transaction Bottom Sheet
+        if (showBottomSheet.value) {
+            TransactionBottomSheet(
+                viewModel = viewModel,
+                onDismiss = {
+                    showBottomSheet.value = false
+                },
+                transactionSource = TransactionSource.ACCOUNT
             )
         }
     }
@@ -273,6 +333,7 @@ fun PotCard(
                 if (isExpanded) {
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Allocation Info
                     val allocationText = when (pot.allocationType) {
                         AllocationType.PERCENTAGE -> "Percentage: ${(pot.allocationValue * BigDecimal(100)).setScale(0)}%"
                         AllocationType.FIXED -> "Fixed: ${pot.allocationValue.stripTrailingZeros().toPlainString()} $currency"
@@ -283,6 +344,7 @@ fun PotCard(
                         style = BokiTheme.typography.bodyMedium
                     )
 
+                    // Card Token Info
                     pot.cardToken?.let { token ->
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
