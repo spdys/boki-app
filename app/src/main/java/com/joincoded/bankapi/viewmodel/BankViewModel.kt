@@ -19,6 +19,7 @@ import com.joincoded.bankapi.data.PotSummaryDto
 import com.joincoded.bankapi.data.PotTransferRequest
 import com.joincoded.bankapi.data.TransactionHistoryRequest
 import com.joincoded.bankapi.data.TransactionHistoryResponse
+import com.joincoded.bankapi.data.TransferRequest
 import com.joincoded.bankapi.data.UserCreationRequest
 import com.joincoded.bankapi.network.RetrofitHelper
 import com.joincoded.bankapi.network.RetrofitHelper.parseErrorBody
@@ -73,14 +74,10 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
     var accountTransactions by mutableStateOf<List<TransactionHistoryResponse>?>(null)
         private set
 
-
     val totalBalance: BigDecimal
         get() = allAccountSummaries.sumOf {
             it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO)
         }
-
-    //var userName by mutableStateOf<String?>(null)
-    //   private set
 
     var allAccountSummaries by mutableStateOf<List<AccountSummaryDto>>(emptyList())
         private set
@@ -491,6 +488,61 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+    var selectedDestinationPot by mutableStateOf<PotSummaryDto?>(null)
+        private set
+    val availableDestinationPots: List<PotSummaryDto>
+        get() = mainAccountSummary?.pots?.filter { it.potId != selectedPot?.potId } ?: emptyList()
+
+    fun setDestinationPot(pot: PotSummaryDto?) {
+        selectedDestinationPot = pot
+    }
+    fun clearDestinationPot() {
+        selectedDestinationPot = null
+    }
+
+    fun transferBetweenPots() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val amountValue = validateAmount(amount.value ?: "")
+                val destinationPot = selectedDestinationPot
+
+                when {
+                    amountValue == null -> {
+                        _error.value = "Invalid amount entered"
+                    }
+                    destinationPot == null -> {
+                        _error.value = "Please select a destination pot"
+                    }
+                    selectedPot == null -> {
+                        _error.value = "Source pot not selected"
+                    }
+                    else -> {
+                        val response = apiBankService.transfer(TransferRequest(
+                            sourceId = selectedPot!!.potId,
+                            destinationId = destinationPot.potId,
+                            amount = amountValue
+                        ))
+
+                        if (response.isSuccessful) {
+                            _isSuccessful.value = true
+                            // Clear selections after successful transfer
+                            clearDestinationPot()
+                            // Refresh data
+                            fetchAccountsAndSummary()
+                        } else {
+                            _error.value = parseErrorBody(response.errorBody()) ?: "Failed to transfer between pots"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _error.value = "Network error: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
     private fun validateAmount(input: String): BigDecimal? {
         return try {
             val value = input.toBigDecimal()
@@ -514,3 +566,5 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+

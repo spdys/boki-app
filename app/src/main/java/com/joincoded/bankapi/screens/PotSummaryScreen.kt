@@ -19,6 +19,7 @@ import com.joincoded.bankapi.components.AddToPotDialog
 import com.joincoded.bankapi.components.PotActionsCard
 import com.joincoded.bankapi.components.TransactionBottomSheet
 import com.joincoded.bankapi.components.TransactionSource
+import com.joincoded.bankapi.components.TransferBetweenPotsDialog
 import com.joincoded.bankapi.components.WithdrawFromPotDialog
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.data.AllocationType
@@ -39,6 +40,8 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
         viewModel.getPotTransactionHistory()
     }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showWithdrawDialog by remember { mutableStateOf(false) }
+    var showTransferDialog by remember { mutableStateOf(false) }
 
     val amount by viewModel.amount.collectAsState()
     val amountError by viewModel.amountError.collectAsState()
@@ -200,7 +203,8 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
 
                 PotActionsCard(
                     onAddClick = { showAddDialog = true },
-                    onWithdrawClick = {showAddDialog = true},
+                    onWithdrawClick = {showWithdrawDialog = true},
+                    onTransferClick = {showTransferDialog = true},
                     modifier = Modifier.padding(16.dp)
                 )
                 AddToPotDialog(
@@ -220,7 +224,7 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 )
 
                 WithdrawFromPotDialog(
-                    isVisible = showAddDialog,
+                    isVisible = showWithdrawDialog,
                     amount = amount,
                     onAmountChange = { viewModel.updateAmount(it) },
                     onConfirm = {
@@ -232,7 +236,27 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                         viewModel.clearAmount()
                     },
                     isLoading = isLoading,
-                    errorMessage = amountError)
+                    errorMessage = amountError
+                )
+                TransferBetweenPotsDialog(
+                    isVisible = showTransferDialog,
+                    amount = amount,
+                    selectedDestinationPot = viewModel.selectedDestinationPot,
+                    availablePots = viewModel.availableDestinationPots,
+                    onAmountChange = { viewModel.updateAmount(it) },
+                    onDestinationPotSelected = { viewModel.setDestinationPot(it) },
+                    onConfirm = {
+                        viewModel.transferBetweenPots()
+                        showAddDialog = false
+                    },
+                    onDismiss = {
+                        showAddDialog = false
+                        viewModel.clearAmount()
+                        viewModel.clearDestinationPot()
+                    },
+                    isLoading = isLoading,
+                    errorMessage = amountError
+                )
             }
         }
         if (showBottomSheet.value) {
