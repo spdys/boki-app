@@ -118,12 +118,12 @@ fun AppNavigation(
             composable(Routes.homeRoute) {
                 HomeScreen(
                     viewModel = viewModel,
-                    onAccountClicked = { summary ->
-                        viewModel.selectAccountById(summary.accountId)
+                    onAccountClicked = { account ->
+                        viewModel.selectAccount(account)
                         navController.navigate(Routes.accountDetailsRoute)
                     },
-                    onPotClicked = { summary ->
-                        viewModel.selectPot(summary)
+                    onPotClicked = { pot ->
+                        viewModel.selectPot(pot)
                         navController.navigate(Routes.potDetailsRoute)
                     }
                 )

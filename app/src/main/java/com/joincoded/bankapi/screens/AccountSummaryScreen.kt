@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
+import com.joincoded.bankapi.components.CreateOrEditPotPopup
 import com.joincoded.bankapi.components.TransactionBottomSheet
 import com.joincoded.bankapi.components.TransactionSource
 import com.joincoded.bankapi.ui.theme.BokiTheme
@@ -26,6 +27,9 @@ import java.math.BigDecimal
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountSummaryScreen(viewModel: BankViewModel) {
+
+    var showCreateDialog by remember { mutableStateOf(false) }
+
     val account = viewModel.selectedAccount
     if (account == null) {
         Box(
@@ -117,7 +121,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                     // Balance
                     AccountDetailRow(
                         label = "Balance",
-                        value = "${account.currency} ${account.balance.setScale(3)}",
+                        value = "${account.balance.setScale(3)} ${account.currency}",
                         isBalance = true
                     )
 
@@ -134,21 +138,31 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
             // Pots Section
             if (!account.pots.isNullOrEmpty()) {
                 Text(
-                    text = "Savings Pots",
+                    text = "Pots",
                     color = BokiTheme.colors.onBackground,
                     style = BokiTheme.typography.headlineMedium,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
+                Button(
+                    onClick = { showCreateDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BokiTheme.colors.secondary)
+                ) {
+                    Text("Create New Pot", color = BokiTheme.colors.onPrimary)
+                }
+
                 LazyColumn(
-                    modifier = Modifier.weight(1f), // Allow scrolling without interference
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(account.pots.indices.toList()) { index ->
+                    items(account.pots.sortedBy { it.name.lowercase() }) { pot ->
                         PotCard(
-                            pot = account.pots[index],
+                            pot = pot,
                             currency = account.currency,
-                            index = index
+                            index = 0 // or assign index if needed
                         )
                     }
 
@@ -157,8 +171,8 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         Spacer(modifier = Modifier.height(120.dp))
                     }
                 }
-            } else {
                 // Empty state for pots
+            } else if (account.accountType == AccountType.MAIN) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = BokiTheme.shapes.card,
@@ -166,17 +180,29 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         containerColor = BokiTheme.colors.cardBackground
                     )
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(32.dp),
-                        contentAlignment = Alignment.Center
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "No savings pots available",
+                            text = "You have not created any pots yet.",
                             color = BokiTheme.colors.textSecondary,
                             style = BokiTheme.typography.bodyMedium
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { showCreateDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BokiTheme.colors.secondary)
+                        ) {
+                            Text("Create Your First Pot", color = BokiTheme.colors.onPrimary)
+                        }
                     }
                 }
 
@@ -184,6 +210,26 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
+
+        if (showCreateDialog) {
+            val totalAllocated = viewModel.mainAccountSummary?.pots
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE }
+                ?.sumOf { it.allocationValue }
+                ?.let { "Total allocated so far: ${(it * BigDecimal(100)).toInt()}%" }
+
+            CreateOrEditPotPopup(
+                totalAllocatedText = totalAllocated,
+                showDialog = showCreateDialog,
+                onDismiss = { showCreateDialog = false },
+                onConfirm = { name, type, value ->
+                    viewModel.createPot(name, type, value)
+                },
+                validateInput = { name, value, type ->
+                    viewModel.validatePotInputs(name, value, type, null)
+                }
+            )
+        }
+
 
         // Transaction Bottom Sheet
         if (showBottomSheet.value) {
@@ -199,7 +245,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
 }
 
 @Composable
-private fun AccountDetailRow(
+fun AccountDetailRow(
     label: String,
     value: String,
     isBalance: Boolean = false
@@ -278,7 +324,7 @@ fun PotCard(
                     )
 
                     Text(
-                        text = "$currency ${pot.balance.setScale(3)}",
+                        text = "${pot.balance.setScale(3)} $currency",
                         color = BokiTheme.colors.onBackground,
                         style = BokiTheme.typography.transactionAmount
                     )

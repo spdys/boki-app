@@ -52,7 +52,7 @@ fun HomeScreen(
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
             viewModel.getKYC()
-            viewModel.fetchAccountsAndSummary()
+            viewModel.fetchAccountsAndSummaries()
         }
     }
 
@@ -142,6 +142,32 @@ fun HomeScreen(
                 item {
                     SectionHeader(title = "Accounts")
                 }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else if (error != null) {
+                Text(text = error ?: "Unknown error", color = MaterialTheme.colorScheme.error)
+            } else {
+                UserGreetingSection(
+                    greeting = viewModel.getGreeting(),
+                    userName = SharedPreferencesManager.getFirstName(context)
+                )
+                BalanceOverviewCard(
+                    totalBalance = totalBalance,
+                    currency = mainCurrency,
+                    balanceVisible = balanceVisible,
+                    onToggleVisibility = { balanceVisible = !balanceVisible }
+                )
+                SectionHeader(title = "Accounts")
+
+            }
+        }
 
                 items(viewModel.allAccountSummaries.sortedBy { it.accountType != AccountType.MAIN }) { summary ->
                     AccountCard(
@@ -170,6 +196,23 @@ fun HomeScreen(
                                 )
                             }
                         }
+        viewModel.mainAccountSummary?.pots?.takeIf { it.isNotEmpty() }?.let { pots ->
+            item {
+                SectionHeader(title = "Pots")
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    itemsIndexed(pots.sortedBy { it.name.lowercase() }) { index, pot ->
+                        PotCard(
+                            pot = pot,
+                            index = index,
+                            balanceVisible = balanceVisible,
+                            currency = mainCurrency,
+                            onClick = onPotClicked
+                        )
                     }
                     item {
                         Spacer(modifier = Modifier.height(24.dp))

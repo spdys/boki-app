@@ -60,7 +60,8 @@ interface BankApiService {
     @POST("accounts/v1/{accountId}/pots/{potId}")
     suspend fun editPot(
         @Path("accountId") accountId: Long,
-        @Path("potId") potId: Long
+        @Path("potId") potId: Long,
+        @Body request: PotRequest
     ): Response<PotResponse>
 
     @DELETE("accounts/v1/{accountId}/pots/{potId}/delete")

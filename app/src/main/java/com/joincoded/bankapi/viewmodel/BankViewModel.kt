@@ -11,10 +11,12 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
+import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.AuthenticationRequest
 import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
 import com.joincoded.bankapi.data.PotDepositRequest
+import com.joincoded.bankapi.data.PotRequest
 import com.joincoded.bankapi.data.PotSummaryDto
 import com.joincoded.bankapi.data.PotTransferRequest
 import com.joincoded.bankapi.data.TransactionHistoryRequest
@@ -234,6 +236,55 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getKYC() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val response = apiBankService.getKYC()
+                if (response.isSuccessful) {
+                    val fullName = response.body()?.fullName ?: ""
+                    SharedPreferencesManager.saveUserName(context, fullName)} else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
+                }
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _isLoading.value = false
+                _error.value = e.message ?: "Unable to fetch KYC info"
+            }
+        }
+    }
+
+    fun fetchAccountsAndSummaries() {
+        viewModelScope.launch {
+            try {
+                val response = apiBankService.getAllAccounts()
+                if (response.isSuccessful) {
+                    val accounts = response.body() ?: emptyList()
+                    val summaries = accounts.mapNotNull { account ->
+                        val summaryResponse = apiBankService.getAccountSummary(account.id)
+                        if (summaryResponse.isSuccessful) summaryResponse.body() else null
+                    }
+                    allAccountSummaries = summaries
+                    val mainSummary = summaries.find { it.accountType == AccountType.MAIN }
+                    mainAccountSummary = mainSummary
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to load accounts"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Could not load accounts"
+            }
+        }
+    }
+
+    fun selectAccount(account: AccountSummaryDto) {
+        selectedAccount = account
+    }
+
+    fun selectPot(pot: PotSummaryDto) {
+        selectedPot = pot
+    }
+
     fun createSavingsAccount() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -256,78 +307,120 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun selectAccountById(accountId: Long) {
-        val localMatch = allAccountSummaries.find { it.accountId == accountId }
-        if (localMatch != null) {
-            selectedAccount = localMatch
-        } else {
-            viewModelScope.launch {
-                _isLoading.value = true
-                _error.value = null
-                _isSuccessful.value = false
-                try {
-                    val response = apiBankService.getAccountSummary(accountId)
-                    if (response.isSuccessful) {
-                        selectedAccount = response.body()
-                        _isSuccessful.value = true
-                    } else {
-                        _error.value = parseErrorBody(response.errorBody())
-                            ?: "Failed to fetch account summary"
-                    }
-                    _isLoading.value = false
-                } catch (e: Exception) {
-                    _isLoading.value = false
-                    _isSuccessful.value = false
-                    _error.value = e.message ?: "Unable to fetch account summary"
-                }
+    fun validatePotInputs(
+        name: String,
+        value: BigDecimal,
+        type: AllocationType,
+        currentPotId: Long?
+    ): String? {
+        if (name.isBlank()) return "Pot name cannot be empty"
+        if (value <= BigDecimal.ZERO) return "Allocation value must be greater than zero"
+        if (type == AllocationType.PERCENTAGE && value >= BigDecimal.ONE) return "Percentage cannot exceed 100%"
+        if (type == AllocationType.PERCENTAGE) {
+            val currentPotIdSet = currentPotId ?: -1
+            val totalPercentage = mainAccountSummary?.pots
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE && it.potId != currentPotIdSet }
+                ?.sumOf { it.allocationValue } ?: BigDecimal.ZERO
+            if (totalPercentage + value > BigDecimal.ONE) {
+                return "Total percentage for all pots cannot be more than 100%"
             }
         }
+        if (mainAccountSummary?.pots?.any {
+                val sameName = it.name.equals(name, ignoreCase = true)
+                val samePot = currentPotId != null && it.potId == currentPotId
+                sameName && !samePot
+            } == true) return "Another pot with this name already exists"
+        return null
     }
 
-    fun selectPot(pot: PotSummaryDto) {
-        selectedPot = pot
-        potTransactions = null
-    }
+    fun createPot(name: String, type: AllocationType, value: BigDecimal) {
+        val accountId = mainAccountSummary?.accountId
 
-    fun fetchAccountsAndSummary() {
-        viewModelScope.launch {
-            try {
-                val response = apiBankService.getAllAccounts()
-                if (response.isSuccessful) {
-                    val accounts = response.body() ?: emptyList()
-                    val summaries = accounts.mapNotNull { account ->
-                        val summaryResponse = apiBankService.getAccountSummary(account.id)
-                        if (summaryResponse.isSuccessful) summaryResponse.body() else null
-                    }
-                    allAccountSummaries = summaries
-                    val mainSummary = summaries.find { it.accountType == AccountType.MAIN }
-                    mainAccountSummary = mainSummary
-                } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to load accounts"
-                }
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Could not load accounts"
-            }
+        if (accountId == null) {
+            _error.value = "Invalid account ID"
+            return
         }
-    }
 
-    fun getKYC() {
+        val validationError = validatePotInputs(name, value, type, null)
+        if (validationError != null) {
+            _error.value = validationError
+            return
+        }
+
+        val request = PotRequest(name.trim(), type, value)
+
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
+            _isSuccessful.value = false
             try {
-                val response = apiBankService.getKYC()
+                val response = apiBankService.createPot(accountId, request)
+
                 if (response.isSuccessful) {
+                    val updated = response.body()
+                    updated?.let {
+                        selectedAccount = apiBankService.getAccountSummary(accountId).body()
+                        _isSuccessful.value = true
+                    }
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create pot"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create pot"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun editPot(updatedName: String, updatedType: AllocationType, updatedValue: BigDecimal) {
+        val accountId = mainAccountSummary?.accountId
+        val potId = selectedPot?.potId
+
+        if (accountId == null || potId == null) {
+            _error.value = "Invalid account or pot ID"
+            return
+        }
+
+        val validationError = validatePotInputs(updatedName, updatedValue, updatedType, selectedPot?.potId)
+        if (validationError != null) {
+            _error.value = validationError
+            return
+        }
+
+        val request = PotRequest(updatedName.trim(), updatedType, updatedValue)
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                val response = apiBankService.editPot(accountId, potId, request)
+                if (response.isSuccessful) {
+                    val updated = response.body()
+                    if (updated != null) {
+                        selectedPot = PotSummaryDto(
+                            potId = selectedPot!!.potId,
+                            name = updated.name,
+                            balance = selectedPot!!.balance,
+                            cardToken = selectedPot!!.cardToken,
+                            allocationType = updated.allocationType,
+                            allocationValue = updated.allocationValue
+                        )
+                        _isSuccessful.value = true
+                    }
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to update pot"
                     val fullName = response.body()?.fullName ?: ""
                     SharedPreferencesManager.saveUserName(context, fullName)
                 } else {
                     _error.value =
                         parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
                 }
-                _isLoading.value = false
             } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to update pot"
+            } finally {
                 _isLoading.value = false
-                _error.value = e.message ?: "Unable to fetch KYC info"
             }
         }
     }

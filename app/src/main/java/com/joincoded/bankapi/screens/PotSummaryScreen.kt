@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import com.joincoded.bankapi.components.TransactionBottomSheet
 import com.joincoded.bankapi.components.TransactionSource
 import com.joincoded.bankapi.components.TransferBetweenPotsDialog
 import com.joincoded.bankapi.components.WithdrawFromPotDialog
+import com.joincoded.bankapi.components.CreateOrEditPotPopup
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -34,7 +36,11 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
         Text("No pot selected")
         return
     }
-    val currency by remember { derivedStateOf { viewModel.mainAccountSummary?.currency ?: "KWD" } }
+
+    var showEditDialog by remember { mutableStateOf(false) }
+
+    val parentAccount by remember { derivedStateOf { viewModel.mainAccountSummary } }
+    val currency = parentAccount?.currency ?: "KWD"
 
     LaunchedEffect(Unit) {
         viewModel.getPotTransactionHistory()
@@ -73,7 +79,12 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = BokiTheme.colors.background.copy(alpha = 0.95f)
-                )
+                ),
+                actions = {
+                    TextButton(onClick = { showEditDialog = true }) {
+                        Text("Edit", color = BokiTheme.colors.secondary)
+                    }
+                }
             )
 
             // Scrollable Content
@@ -98,7 +109,9 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                     )
                 ) {
                     Column(
-                        modifier = Modifier.padding(32.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // Pot Icon
@@ -181,7 +194,7 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         PotDetailRow(
-                            label = "Allocation Amount",
+                            label = "Allocation Value",
                             value = allocationText,
                             icon = Icons.Default.Savings
                         )
@@ -258,6 +271,30 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                     errorMessage = amountError
                 )
             }
+        }
+
+        if (showEditDialog) {
+            val totalAllocated = viewModel.mainAccountSummary?.pots
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE }
+                ?.sumOf {
+                    if (it.potId == pot.potId) pot.allocationValue else it.allocationValue
+                }?.let { "Total allocated so far: ${(it * BigDecimal(100)).toInt()}%" }
+
+            CreateOrEditPotPopup(
+                initialName = pot.name,
+                initialType = pot.allocationType,
+                initialValue = pot.allocationValue.toPlainString(),
+                currency = currency,
+                totalAllocatedText = totalAllocated,
+                showDialog = showEditDialog,
+                onDismiss = { showEditDialog = false },
+                onConfirm = { name, type, value ->
+                    viewModel.editPot(name, type, value)
+                },
+                validateInput = { name, value, type ->
+                    viewModel.validatePotInputs(name, value, type, pot.potId)
+                }
+            )
         }
         if (showBottomSheet.value) {
             TransactionBottomSheet(
