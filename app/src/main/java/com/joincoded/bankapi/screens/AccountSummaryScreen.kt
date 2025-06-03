@@ -102,7 +102,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(account.pots) { pot ->
+                    items(account.pots.sortedBy { it.name.lowercase() }) { pot ->
                         PotCard(
                             pot = pot,
                             currency = account.currency,

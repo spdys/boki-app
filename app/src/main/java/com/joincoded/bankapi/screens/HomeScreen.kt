@@ -98,7 +98,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
-                    itemsIndexed(pots) { index, pot ->
+                    itemsIndexed(pots.sortedBy { it.name.lowercase() }) { index, pot ->
                         PotCard(
                             pot = pot,
                             index = index,
