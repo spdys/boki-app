@@ -261,7 +261,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 
-    fun fetchAccountsAndSummary() {
+    fun fetchAccountsAndSummaries() {
         viewModelScope.launch {
             try {
                 val response = apiBankService.getAllAccounts()
@@ -692,7 +692,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                     _isSuccessful.value = true
                     // CRITICAL: Refresh account data after successful payment
                     // This updates balances and ensures transaction history is current
-                    fetchAccountsAndSummary()
+                    fetchAccountsAndSummaries()
                 } else {
                     // Backend handles all validation - just show the error
                     _error.value = parseErrorBody(response.errorBody()) ?: "Payment declined"
@@ -750,7 +750,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                     //  updates balances and ensures transaction history is current
-                    fetchAccountsAndSummary()
+                    fetchAccountsAndSummaries()
                 } else {
                     // Backend handles all validation - just show the error
                     _error.value = parseErrorBody(response.errorBody()) ?: "Transfer failed"
