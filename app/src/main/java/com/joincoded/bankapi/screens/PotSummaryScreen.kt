@@ -31,7 +31,6 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
     }
 
     var showEditDialog by remember { mutableStateOf(false) }
-    var showConfirmationDialog by remember { mutableStateOf(false) }
 
     val parentAccount by remember { derivedStateOf { viewModel.mainAccountSummary } }
     val currency = parentAccount?.currency ?: "KWD"

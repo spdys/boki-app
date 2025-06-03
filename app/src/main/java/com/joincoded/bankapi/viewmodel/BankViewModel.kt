@@ -342,7 +342,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     val updated = response.body()
                     updated?.let {
-                        mainAccountSummary = apiBankService.getAccountSummary(accountId).body()
+                        selectedAccount = apiBankService.getAccountSummary(accountId).body()
                         _isSuccessful.value = true
                     }
                 } else {

@@ -1,7 +1,5 @@
 package com.joincoded.bankapi.screens
 
-
-import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.PotSummaryDto
@@ -17,12 +15,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
+import com.joincoded.bankapi.components.CreateOrEditPotPopup
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
 
 @Composable
 fun AccountSummaryScreen(viewModel: BankViewModel) {
+
+    var showCreateDialog by remember { mutableStateOf(false) }
+
     val account = viewModel.selectedAccount
     if (account == null) {
         Text("No account selected")
@@ -99,7 +101,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                 )
 
                 Button(
-                    onClick = { /* TODO: Implement create pot logic */ },
+                    onClick = { showCreateDialog = true },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
@@ -146,7 +148,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Button(
-                            onClick = { /* TODO: Implement create pot logic */ },
+                            onClick = { showCreateDialog = true },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp),
@@ -159,6 +161,25 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
 
                 Spacer(modifier = Modifier.weight(1f))
             }
+        }
+
+        if (showCreateDialog) {
+            val totalAllocated = viewModel.mainAccountSummary?.pots
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE }
+                ?.sumOf { it.allocationValue }
+                ?.let { "Total allocated so far: ${(it * BigDecimal(100)).toInt()}%" }
+
+            CreateOrEditPotPopup(
+                totalAllocatedText = totalAllocated,
+                showDialog = showCreateDialog,
+                onDismiss = { showCreateDialog = false },
+                onConfirm = { name, type, value ->
+                    viewModel.createPot(name, type, value)
+                },
+                validateInput = { name, value, type ->
+                    viewModel.validatePotInputs(name, value, type, null)
+                }
+            )
         }
     }
 }
