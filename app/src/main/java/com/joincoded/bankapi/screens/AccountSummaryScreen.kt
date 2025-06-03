@@ -1,7 +1,5 @@
 package com.joincoded.bankapi.screens
 
-
-import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.PotSummaryDto
@@ -17,12 +15,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
+import com.joincoded.bankapi.components.CreateOrEditPotPopup
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
 
 @Composable
 fun AccountSummaryScreen(viewModel: BankViewModel) {
+
+    var showCreateDialog by remember { mutableStateOf(false) }
+
     val account = viewModel.selectedAccount
     if (account == null) {
         Text("No account selected")
@@ -98,11 +100,21 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
+                Button(
+                    onClick = { showCreateDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BokiTheme.colors.secondary)
+                ) {
+                    Text("Create New Pot", color = BokiTheme.colors.onPrimary)
+                }
+
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(account.pots) { pot ->
+                    items(account.pots.sortedBy { it.name.lowercase() }) { pot ->
                         PotCard(
                             pot = pot,
                             currency = account.currency,
@@ -113,7 +125,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         Spacer(modifier = Modifier.height(120.dp))
                     }
                 }
-            } else {
+            } else if (account.accountType == AccountType.MAIN) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = BokiTheme.shapes.card,
@@ -121,17 +133,29 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         containerColor = BokiTheme.colors.cardBackground
                     )
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(32.dp),
-                        contentAlignment = Alignment.Center
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "No savings pots available",
+                            text = "You have not created any pots yet.",
                             color = BokiTheme.colors.textSecondary,
                             style = BokiTheme.typography.bodyMedium
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { showCreateDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BokiTheme.colors.secondary)
+                        ) {
+                            Text("Create Your First Pot", color = BokiTheme.colors.onPrimary)
+                        }
                     }
                 }
 
@@ -139,13 +163,24 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
             }
         }
 
-        // Floating Transaction List (overlay at bottom)
-//        if (transactions.isNotEmpty()) {
-//            SwipeUpTransactionList(
-//                transactions = transactions,
-//                currency = accountSummary.currency
-//            )
-//        }
+        if (showCreateDialog) {
+            val totalAllocated = viewModel.mainAccountSummary?.pots
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE }
+                ?.sumOf { it.allocationValue }
+                ?.let { "Total allocated so far: ${(it * BigDecimal(100)).toInt()}%" }
+
+            CreateOrEditPotPopup(
+                totalAllocatedText = totalAllocated,
+                showDialog = showCreateDialog,
+                onDismiss = { showCreateDialog = false },
+                onConfirm = { name, type, value ->
+                    viewModel.createPot(name, type, value)
+                },
+                validateInput = { name, value, type ->
+                    viewModel.validatePotInputs(name, value, type, null)
+                }
+            )
+        }
     }
 }
 
@@ -261,75 +296,3 @@ fun PotCard(
         }
     }
 }
-
-//@Preview(showBackground = true)
-//@Composable
-//fun AccountSummaryScreenPreview() {
-//    val samplePots = listOf(
-//        PotSummaryDto(
-//            potId = 1L,
-//            name = "Emergency Fund",
-//            balance = BigDecimal("2500.00"),
-//            cardToken = "1234567890123456",
-//            allocationType = AllocationType.PERCENTAGE,
-//            allocationValue = BigDecimal("15.0")
-//        ),
-//        PotSummaryDto(
-//            potId = 2L,
-//            name = "Vacation Savings",
-//            balance = BigDecimal("1200.50"),
-//            cardToken = null,
-//            allocationType = AllocationType.FIXED,
-//            allocationValue = BigDecimal("200.00")
-//        ),
-//        PotSummaryDto(
-//            potId = 3L,
-//            name = "New Car Fund",
-//            balance = BigDecimal("850.75"),
-//            cardToken = "9876543210987654",
-//            allocationType = AllocationType.PERCENTAGE,
-//            allocationValue = BigDecimal("10.0")
-//        )
-//    )
-//
-//    val sampleAccount = AccountSummaryDto(
-//        accountId = 1L,
-//        accountNumber = "ACC123456789",
-//        accountType = AccountType.SAVINGS,
-//        balance = BigDecimal("15750.25"),
-//        cardNumber = "1234567890123456",
-//        currency = "USD",
-//        isActive = true,
-//        pots = samplePots
-//    )
-
-//    val sampleTransactions = listOf(
-//        TransactionHistoryResponse(
-//            id = 1L,
-//            amount = BigDecimal("250.000"),
-//            transactionType = "DEPOSIT",
-//            description = "Salary Payment",
-//            createdAt = LocalDateTime.now().minusHours(2)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 2L,
-//            amount = BigDecimal("45.500"),
-//            transactionType = "WITHDRAWAL",
-//            description = "Coffee Shop",
-//            createdAt = LocalDateTime.now().minusHours(5)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 3L,
-//            amount = BigDecimal("12.750"),
-//            transactionType = "DEBIT",
-//            description = "Grocery Store",
-//            createdAt = LocalDateTime.now().minusDays(1)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 4L,
-//            amount = BigDecimal("100.000"),
-//            transactionType = "TRANSFER",
-//            description = "Transfer to Savings",
-//            createdAt = LocalDateTime.now().minusDays(2)
-//        )
-//    )
