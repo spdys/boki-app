@@ -68,7 +68,7 @@ fun HomeScreen(
             } else {
                 UserGreetingSection(
                     greeting = viewModel.getGreeting(),
-                    userName = SharedPreferencesManager.getFirstName(context) ?: "User"
+                    userName = SharedPreferencesManager.getFirstName(context)
                 )
                 BalanceOverviewCard(
                     totalBalance = totalBalance,

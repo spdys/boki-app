@@ -309,9 +309,51 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         if (mainAccountSummary?.pots?.any {
-                it.name.equals(name, ignoreCase = true) && it.potId != currentPotId
+                val sameName = it.name.equals(name, ignoreCase = true)
+                val samePot = currentPotId != null && it.potId == currentPotId
+                sameName && !samePot
             } == true) return "Another pot with this name already exists"
         return null
+    }
+
+    fun createPot(name: String, type: AllocationType, value: BigDecimal) {
+        val accountId = mainAccountSummary?.accountId
+
+        if (accountId == null) {
+            _error.value = "Invalid account ID"
+            return
+        }
+
+        val validationError = validatePotInputs(name, value, type, null)
+        if (validationError != null) {
+            _error.value = validationError
+            return
+        }
+
+        val request = PotRequest(name.trim(), type, value)
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                val response = apiBankService.createPot(accountId, request)
+
+                if (response.isSuccessful) {
+                    val updated = response.body()
+                    updated?.let {
+                        mainAccountSummary = apiBankService.getAccountSummary(accountId).body()
+                        _isSuccessful.value = true
+                    }
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create pot"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create pot"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     fun editPot(updatedName: String, updatedType: AllocationType, updatedValue: BigDecimal) {
