@@ -40,7 +40,7 @@ fun AppNavigation(
     ) {
         // Auth navigation graph
         navigation(
-            startDestination = authStartDestination,
+            startDestination = Routes.manualLoginRoute,
             route = Routes.authGraph
         ) {
             // Biometric Login Screen (Primary for returning users)
