@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import com.joincoded.bankapi.data.CardPaymentRequest
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
@@ -83,6 +84,10 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
 
     var allAccountSummaries by mutableStateOf<List<AccountSummaryDto>>(emptyList())
         private set
+
+    // QuickPay NFC state
+    private val isNFCEnabled = MutableStateFlow(false)
+    val nfcEnabled = isNFCEnabled.asStateFlow()
 
     init {
         // Check if user is already logged in when ViewModel is created
@@ -169,7 +174,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                 } else {
-                    _error.value = "Registration failed"
+                    _error.value = "Registration failed" // declare error type
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -255,6 +260,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
     fun fetchAccountsAndSummaries() {
         viewModelScope.launch {
             try {
@@ -332,6 +338,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             } == true) return "Another pot with this name already exists"
         return null
     }
+
+
 
     fun createPot(name: String, type: AllocationType, value: BigDecimal) {
         val accountId = mainAccountSummary?.accountId
@@ -647,6 +655,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+
     private fun validateAmount(input: String): BigDecimal? {
         return try {
             val value = input.toBigDecimal()
@@ -667,6 +677,89 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: NumberFormatException) {
             _amountError.value = "Please enter a valid amount"
             null
+        }
+    }
+    fun makeCardPayment(request: CardPaymentRequest) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                // AuthInterceptor automatically adds authorization
+                val response = apiBankService.purchaseFromCard(request)
+
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    // CRITICAL: Refresh account data after successful payment
+                    // This updates balances and ensures transaction history is current
+                    fetchAccountsAndSummaries()
+                } else {
+                    // Backend handles all validation - just show the error
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Payment declined"
+                }
+            } catch (e: Exception) {
+                _error.value = handleNetworkError(e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+    fun authenticateForPayment(username: String, password: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val response = apiAuthService.getToken(AuthenticationRequest(username, password))
+
+                if (response.isSuccessful && response.body()?.token != null) {
+                    _isLoading.value = false
+                    onSuccess()
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Wrong credentials"
+                    _isLoading.value = false
+                }
+            } catch (e: Exception) {
+                _error.value = handleNetworkError(e)
+                _isLoading.value = false
+            }
+        }
+    }
+    fun getCardholderName(): String {
+        val fullName = SharedPreferencesManager.getSavedUserName(context)
+        return if (fullName.isNotEmpty()) {
+            fullName.trim()
+        } else {
+            "Card Holder"
+        }
+    }
+    fun toggleNfc() {
+        isNFCEnabled.value = !isNFCEnabled.value
+    }
+    fun resetPaymentFlow() {
+        isNFCEnabled.value = false
+        clearStates()
+    }
+    fun transfer(request: TransferRequest) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                val response = apiBankService.transfer(request)
+
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    //  updates balances and ensures transaction history is current
+                    fetchAccountsAndSummaries()
+                } else {
+                    // Backend handles all validation - just show the error
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Transfer failed"
+                }
+            } catch (e: Exception) {
+                _error.value = handleNetworkError(e)
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 }
