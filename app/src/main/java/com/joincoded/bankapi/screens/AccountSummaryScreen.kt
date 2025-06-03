@@ -98,6 +98,16 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
+                Button(
+                    onClick = { /* TODO: Implement create pot logic */ },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BokiTheme.colors.secondary)
+                ) {
+                    Text("Create New Pot", color = BokiTheme.colors.onPrimary)
+                }
+
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -121,17 +131,29 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         containerColor = BokiTheme.colors.cardBackground
                     )
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(32.dp),
-                        contentAlignment = Alignment.Center
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = "You have not created any pots yet.",
                             color = BokiTheme.colors.textSecondary,
                             style = BokiTheme.typography.bodyMedium
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { /* TODO: Implement create pot logic */ },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BokiTheme.colors.secondary)
+                        ) {
+                            Text("Create Your First Pot", color = BokiTheme.colors.onPrimary)
+                        }
                     }
                 }
 
