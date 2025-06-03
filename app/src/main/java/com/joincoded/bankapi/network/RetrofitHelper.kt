@@ -5,13 +5,17 @@ import com.joincoded.bankapi.data.response.FailureResponse
 import com.joincoded.bankapi.utils.Constants
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitHelper {
     private fun getOkHttpClient(): OkHttpClient {
+        val log = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
+
         return OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor())
+            .addInterceptor(log)
             .build()
     }
 

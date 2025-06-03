@@ -428,6 +428,34 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deletePot() {
+        val accountId = mainAccountSummary?.accountId
+        val potId = selectedPot?.potId
+
+        if (accountId == null || potId == null) {
+            _error.value = "Invalid account or pot ID"
+            return
+        }
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                val response = apiBankService.deletePot(accountId, potId)
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to delete pot"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to delete pot"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
 
     fun getPotTransactionHistory() {
         viewModelScope.launch {

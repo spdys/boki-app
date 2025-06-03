@@ -6,7 +6,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,7 +14,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joincoded.bankapi.components.AddToPotDialog
 import com.joincoded.bankapi.components.PotActionsCard
 import com.joincoded.bankapi.components.TransactionBottomSheet
@@ -30,7 +28,10 @@ import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PotSummaryScreen(viewModel: BankViewModel) {
+fun PotSummaryScreen(
+    viewModel: BankViewModel,
+    onDeleteClicked: () -> Unit
+) {
     val pot = viewModel.selectedPot
     if (pot == null) {
         Text("No pot selected")
@@ -275,17 +276,15 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
 
         if (showEditDialog) {
             val totalAllocated = viewModel.mainAccountSummary?.pots
-                ?.filter { it.allocationType == AllocationType.PERCENTAGE }
-                ?.sumOf {
-                    if (it.potId == pot.potId) pot.allocationValue else it.allocationValue
-                }?.let { "Total allocated so far: ${(it * BigDecimal(100)).toInt()}%" }
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE && it.potId != pot.potId }
+                ?.sumOf { it.allocationValue } ?: BigDecimal.ZERO
 
             CreateOrEditPotPopup(
                 initialName = pot.name,
                 initialType = pot.allocationType,
                 initialValue = pot.allocationValue.toPlainString(),
                 currency = currency,
-                totalAllocatedText = totalAllocated,
+                totalAllocated = totalAllocated,
                 showDialog = showEditDialog,
                 onDismiss = { showEditDialog = false },
                 onConfirm = { name, type, value ->
@@ -293,6 +292,10 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 },
                 validateInput = { name, value, type ->
                     viewModel.validatePotInputs(name, value, type, pot.potId)
+                },
+                onDelete = {
+                    onDeleteClicked()
+                    showEditDialog = false
                 }
             )
         }
