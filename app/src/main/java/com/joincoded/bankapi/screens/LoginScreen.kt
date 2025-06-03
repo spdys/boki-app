@@ -1,28 +1,21 @@
 package com.joincoded.bankapi.screens
 
-import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,12 +30,6 @@ import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.util.concurrent.Executor
 
 @Composable
-fun getFragmentActivity(): FragmentActivity? {
-    val context = LocalContext.current
-    return context as? FragmentActivity
-}
-
-@Composable
 fun LoginScreen(
     bankViewModel: BankViewModel,
     onLoginSuccess: () -> Unit,
@@ -50,41 +37,51 @@ fun LoginScreen(
     navigateToRegister: () -> Unit
 ) {
     val context = LocalContext.current
-    val activity = getFragmentActivity()
+    val activity = context as? FragmentActivity
     val executor: Executor = ContextCompat.getMainExecutor(context)
-    val haptic = LocalHapticFeedback.current
-    val density = LocalDensity.current
 
+    val error by bankViewModel.error.collectAsState()
     val isLoading by bankViewModel.isLoading.collectAsState()
     val isSuccessful by bankViewModel.isSuccessful.collectAsState()
 
-    // Drag and animation states
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    var showErrorDialog by remember { mutableStateOf(false) }
-    var failedAttempts by remember { mutableIntStateOf(0) }
-    var firstName by remember { mutableStateOf("") }
-    var isNearTarget by remember { mutableStateOf(false) }
-    var biometricAvailable by remember { mutableStateOf(true) }
+    // Get saved user's first name for greeting
+    val savedName = SharedPreferencesManager.getFirstName(context)
+    val greetingText = "Welcome to your virtual wallet"
 
-    // Smart routing - check if user exists
-    LaunchedEffect(Unit) {
-        if (!SharedPreferencesManager.hasExistingUser(context)) {
-            navigateToRegister()
-            return@LaunchedEffect
-        }
-        firstName = SharedPreferencesManager.getFirstName(context)
+    // Biometric setup
+    val biometricPrompt = activity?.let {
+        BiometricPrompt(it, executor, object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                // Get saved username and trigger login
+                val savedUsername = SharedPreferencesManager.getLastUsername(context)
+                if (savedUsername.isNotEmpty()) {
+                    // For biometric, we'll need to handle this differently
+                    // This is a simplified version - you might need to store encrypted credentials
+                    onLoginSuccess()
+                } else {
+                    navigateToManualLogin()
+                }
+            }
 
-        // Check biometric availability
-        val biometricManager = BiometricManager.from(context)
-        biometricAvailable = when (biometricManager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_WEAK or
-                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        )) {
-            BiometricManager.BIOMETRIC_SUCCESS -> true
-            else -> false
-        }
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                // Handle authentication error - redirect to manual login
+                navigateToManualLogin()
+            }
+
+            override fun onAuthenticationFailed() {
+                // Handle authentication failure - redirect to manual login
+                navigateToManualLogin()
+            }
+        })
     }
 
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        .setTitle("Biometric Authentication")
+        .setSubtitle("Use your biometric credential to access your account")
+        .setNegativeButtonText("Use Password")
+        .build()
+
+    // Handle successful login
     LaunchedEffect(isSuccessful) {
         if (isSuccessful) {
             onLoginSuccess()
@@ -92,79 +89,13 @@ fun LoginScreen(
         }
     }
 
-    // Drag thresholds and target zones
-    val upThreshold = with(density) { -100.dp.toPx() }
-    val downThreshold = with(density) { 150.dp.toPx() }
-    val targetZone = with(density) { 120.dp.toPx() } // Zone near fingerprint for effects
-
-    // animations for visual feedback
-    val circleScale by animateFloatAsState(
-        targetValue = if (isNearTarget) 1.2f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "circleScale"
-    )
-
-    val circleElevation by animateDpAsState(
-        targetValue = if (isNearTarget) 20.dp else 12.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "circleElevation"
-    )
-
-    val fingerprintScale by animateFloatAsState(
-        targetValue = if (isNearTarget) 1.3f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "fingerprintScale"
-    )
-
-    // Biometric setup with error handling
-    val biometricPrompt = activity?.let {
-        BiometricPrompt(it, executor, object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                failedAttempts = 0
-                onLoginSuccess()
-            }
-
-            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                when (errorCode) {
-                    BiometricPrompt.ERROR_NO_BIOMETRICS,
-                    BiometricPrompt.ERROR_HW_NOT_PRESENT,
-                    BiometricPrompt.ERROR_HW_UNAVAILABLE -> {
-                        // Hardware issue - go directly to manual
-                        navigateToManualLogin()
-                    }
-                    BiometricPrompt.ERROR_USER_CANCELED,
-                    BiometricPrompt.ERROR_NEGATIVE_BUTTON -> {
-                        // User cancelled - stay on screen
-                        return
-                    }
-                    else -> {
-                        // Authentication failed
-                        failedAttempts++
-                        showErrorDialog = true
-                    }
-                }
-            }
-
-            override fun onAuthenticationFailed() {
-                failedAttempts++
-                showErrorDialog = true
-            }
-        })
-    }
-
-    val promptInfo = BiometricPrompt.PromptInfo.Builder()
-        .setTitle("Boki Login")
-        .setSubtitle("Use your biometric authentication")
-        .setNegativeButtonText("Cancel")
-        .build()
-
-    // Trigger biometric authentication
-    fun triggerBiometric() {
-        if (!biometricAvailable) {
+    // Handle errors
+    LaunchedEffect(error) {
+        error?.let {
+            // If there's an error, redirect to manual login
             navigateToManualLogin()
-            return
+            bankViewModel.clearStates()
         }
-        biometricPrompt?.authenticate(promptInfo)
     }
 
     Box(
@@ -172,247 +103,279 @@ fun LoginScreen(
             .fillMaxSize()
             .background(BokiTheme.gradient)
     ) {
+        // Header with Sign Up option
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = navigateToRegister,
+                colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+            ) {
+                Text(
+                    text = "Sign Up",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(80.dp))
-
-            Card(
-                modifier = Modifier
-                    .size(280.dp)
-                    .shadow(
-                        elevation = 20.dp,
-                        shape = RoundedCornerShape(24.dp)
-                    ),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                )
+            // Welcome Text - Above logo
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 32.dp)
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.boki_logo_dark_mode),
-                        contentDescription = "Boki Logo",
-                        modifier = Modifier.size(200.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            //greeting with first name
-            if (firstName.isNotEmpty()) {
                 Text(
-                    text = "Welcome, $firstName!",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
+                    text = "WELCOME !",
                     color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 1.sp,
                     textAlign = TextAlign.Center
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
-                    text = "to your virtual wallet",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Normal
-                    ),
-                    color = Color.White.copy(alpha = 0.8f),
+                    text = "TO YOUR VIRTUAL WALLET",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 0.5.sp,
                     textAlign = TextAlign.Center
                 )
             }
 
-            Spacer(modifier = Modifier.height(100.dp))
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 80.dp)
-                .size(80.dp)
-                .scale(fingerprintScale)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    if (isNearTarget)
-                        BokiTheme.colors.secondary.copy(alpha = 0.3f)
-                    else
-                        Color.White.copy(alpha = 0.2f)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.fingerprint),
-                contentDescription = "Fingerprint Scanner",
-                tint = if (isNearTarget) Color.White else Color.White.copy(alpha = 0.7f),
-                modifier = Modifier.size(48.dp)
+            // Boki Logo
+            Image(
+                painter = painterResource(id = R.drawable.boki_logo_dark_mode),
+                contentDescription = "Boki Logo",
+                modifier = Modifier
+                    .size(120.dp)
+                    .padding(bottom = 24.dp)
             )
-        }
 
-        // Draggable login circle
-        Box(
-            modifier = Modifier
-                .offset(y = dragOffsetY.dp)
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 200.dp)
-                .size(80.dp)
-                .scale(circleScale)
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onDragStart = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        },
-                        onDragEnd = {
-                            when {
-                                dragOffsetY < upThreshold / density.density -> {
-                                    // Swipe up - go to manual login
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    navigateToManualLogin()
-                                }
-                                dragOffsetY > downThreshold / density.density -> {
-                                    // Swipe down - trigger biometric
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    triggerBiometric()
-                                }
-                            }
-                            // Reset position and state
-                            dragOffsetY = 0f
-                            isNearTarget = false
-                        }
-                    ) { _, dragAmount ->
-                        dragOffsetY += dragAmount / density.density
+            // Welcome text under logo
+            Text(
+                text = greetingText,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Normal,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 48.dp)
+            )
 
-                        // Check if near target for visual feedback
-                        val newNearTarget = dragOffsetY > (targetZone / density.density)
-                        if (newNearTarget != isNearTarget) {
-                            isNearTarget = newNearTarget
-                            if (newNearTarget) {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }
-                        }
-                    }
-                }
-                .shadow(
-                    elevation = circleElevation,
-                    shape = CircleShape
-                )
-                .clip(CircleShape)
-                .background(
-                    if (isNearTarget)
-                        BokiTheme.colors.secondary.copy(alpha = 0.9f)
-                    else
-                        BokiTheme.colors.secondary
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(32.dp),
-                    color = Color.White,
-                    strokeWidth = 3.dp
-                )
-            } else {
+            // User Avatar
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color.Red.copy(alpha = 0.8f))
+                    .padding(bottom = 48.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = Icons.Default.Person,
-                    contentDescription = "User Profile",
+                    contentDescription = "User",
                     tint = Color.White,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(32.dp)
                 )
             }
-        }
 
-        // Error Dialog
-        if (showErrorDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showErrorDialog = false
-                    bankViewModel.clearStates()
-                },
-                icon = {
-                    Icon(
-                        painter = painterResource(id = R.drawable.error),
-                        contentDescription = "Error Icon",
-                        tint = BokiTheme.colors.secondary
-                    )
-                },
-                title = { Text("Biometric Authentication Failed") },
-                text = null,
-                confirmButton = {
-                    if (failedAttempts == 1) {
-                        // First attempt - show "Try Again"
-                        Button(
-                            onClick = {
-                                showErrorDialog = false
-                                bankViewModel.clearStates()
-                                triggerBiometric()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BokiTheme.colors.secondary
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Try Again")
-                        }
-                    } else {
-                        // Second attempt - only "Enter Password"
-                        Button(
-                            onClick = {
-                                showErrorDialog = false
-                                bankViewModel.clearStates()
-                                navigateToManualLogin()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BokiTheme.colors.secondary
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Enter Password")
-                        }
-                    }
-                },
-                dismissButton = {
-                    if (failedAttempts == 1) {
-                        OutlinedButton(
-                            onClick = {
-                                showErrorDialog = false
-                                bankViewModel.clearStates()
-                                navigateToManualLogin()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Enter Password")
-                        }
-                    }
-                    // Second attempt has no dismiss button - only "Enter Password"
-                }
-            )
-        }
+            Spacer(modifier = Modifier.height(48.dp))
 
-        // No biometric available fallback
-        if (!biometricAvailable && firstName.isNotEmpty()) {
-            Card(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.1f)
+            // Biometric Scanner - No square outline, just corner brackets
+            Box(
+                modifier = Modifier.padding(bottom = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Fingerprint icon
+                Icon(
+                    imageVector = Icons.Default.Fingerprint,
+                    contentDescription = "Fingerprint Scanner",
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(48.dp)
                 )
+
+                // Corner brackets only
+                Box(modifier = Modifier.size(80.dp)) {
+                    // Top-left bracket
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.TopStart)
+                            .background(
+                                Color.Transparent
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .height(16.dp)
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .align(Alignment.TopStart)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(2.dp)
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .align(Alignment.TopStart)
+                        )
+                    }
+
+                    // Top-right bracket
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.TopEnd)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .height(16.dp)
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .align(Alignment.TopEnd)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(2.dp)
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .align(Alignment.TopEnd)
+                        )
+                    }
+
+                    // Bottom-left bracket
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.BottomStart)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .height(16.dp)
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .align(Alignment.BottomStart)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(2.dp)
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .align(Alignment.BottomStart)
+                        )
+                    }
+
+                    // Bottom-right bracket
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.BottomEnd)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .height(16.dp)
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .align(Alignment.BottomEnd)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(2.dp)
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .align(Alignment.BottomEnd)
+                        )
+                    }
+                }
+            }
+
+            // Instruction Text - Shorter
+            Text(
+                text = "Place your finger to login",
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+
+            // Authenticate Button
+            Button(
+                onClick = {
+                    biometricPrompt?.authenticate(promptInfo)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.Black,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = if (isLoading) "Authenticating..." else "Authenticate",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Manual Login Option
+            TextButton(
+                onClick = navigateToManualLogin,
+                colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.7f))
             ) {
                 Text(
-                    text = "Biometric authentication not available. Swipe up for manual login.",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(16.dp)
+                    text = "Use Password Instead",
+                    fontSize = 14.sp,
+                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
                 )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Sign Up Option
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Don't have an account? Create a new user ",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp
+                )
+                TextButton(
+                    onClick = navigateToRegister,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                ) {
+                    Text(
+                        text = "here",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                    )
+                }
             }
         }
     }
