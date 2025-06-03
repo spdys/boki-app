@@ -181,7 +181,7 @@ private fun BalanceOverviewCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (balanceVisible) "$currency ${totalBalance.setScale(3)}" else "••••••",
+                text = if (balanceVisible) "${totalBalance.setScale(3)} $currency" else "••••••",
                 style = BokiTheme.typography.displaySmall,
                 color = BokiTheme.colors.onBackground,
                 fontWeight = FontWeight.Bold
@@ -236,7 +236,7 @@ private fun AccountCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (balanceVisible) "${account.currency} ${account.balance.setScale(3)}" else "••••••",
+                text = if (balanceVisible) "${account.balance.setScale(3)} ${account.currency}" else "••••••",
                 style = BokiTheme.typography.titleBold,
                 color = BokiTheme.colors.onBackground,
                 fontWeight = FontWeight.Bold
@@ -289,7 +289,7 @@ fun PotCard(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (balanceVisible) "$currency ${pot.balance.setScale(3)}" else "••••••",
+                    text = if (balanceVisible) "${pot.balance.setScale(3)} $currency" else "••••••",
                     style = BokiTheme.typography.bodyLarge,
                     color = BokiTheme.colors.onBackground,
                     fontWeight = FontWeight.Medium
