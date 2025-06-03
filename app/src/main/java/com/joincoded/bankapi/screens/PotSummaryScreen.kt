@@ -196,6 +196,17 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
             var newType by remember { mutableStateOf(pot.allocationType) }
             var newValue by remember { mutableStateOf(pot.allocationValue.toPlainString()) }
             var validationError by remember { mutableStateOf<String?>(null) }
+            var lastSelectedType by remember { mutableStateOf(pot.allocationType) }
+
+            // Validation effect: update validation error when any input changes
+            LaunchedEffect(newName, newType, newValue) {
+                val value = newValue.toBigDecimalOrNull()
+                validationError = if (value != null) {
+                    viewModel.validatePotInputs(newName, value, newType, viewModel.selectedPot?.potId)
+                } else {
+                    "Invalid number format"
+                }
+            }
 
             // Compute whether the form values have changed
             val isFormChanged = newName != pot.name ||
@@ -206,6 +217,7 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 onDismissRequest = { showEditDialog = false },
                 title = { Text("Edit Pot") },
                 text = {
+                    var sliderPosition by remember { mutableFloatStateOf(pot.allocationValue.toFloat()) }
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedTextField(
                             value = newName,
@@ -215,14 +227,50 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                         )
                         DropdownMenuBox(
                             selected = newType,
-                            onSelectedChange = { newType = it }
+                            onSelectedChange = {
+                                if (it != newType) {
+                                    newType = it
+                                    lastSelectedType = it
+                                    newValue = if (it == AllocationType.PERCENTAGE) "0.0" else "0"
+                                    sliderPosition = 0f
+                                }
+                            }
                         )
-                        OutlinedTextField(
-                            value = newValue,
-                            onValueChange = { newValue = it },
-                            label = { Text("Allocation Value") },
-                            singleLine = true
-                        )
+                        if (newType == AllocationType.PERCENTAGE) {
+                            // Update newValue when sliderPosition changes
+                            LaunchedEffect(sliderPosition) {
+                                newValue = sliderPosition.toBigDecimal().toPlainString()
+                            }
+
+                            Column {
+                                Text(
+                                    "Allocation Percentage: ${(sliderPosition * 100).toInt()}%",
+                                    style = BokiTheme.typography.bodyMedium
+                                )
+                                Slider(
+                                    value = sliderPosition,
+                                    onValueChange = { sliderPosition = it },
+                                    valueRange = 0f..1f,
+                                    steps = 19 // for 5% steps
+                                )
+                                val totalAllocated = viewModel.mainAccountSummary?.pots
+                                    ?.filter { it.allocationType == AllocationType.PERCENTAGE && it.potId != viewModel.selectedPot?.potId }
+                                    ?.sumOf { it.allocationValue } ?: BigDecimal.ZERO
+
+                                Text(
+                                    text = "Total allocated so far: ${(totalAllocated * BigDecimal(100)).toInt()}%",
+                                    style = BokiTheme.typography.labelSmall,
+                                    color = BokiTheme.colors.textSecondary
+                                )
+                            }
+                        } else {
+                            OutlinedTextField(
+                                value = newValue,
+                                onValueChange = { newValue = it },
+                                label = { Text("Allocation Value") },
+                                singleLine = true
+                            )
+                        }
                         if (validationError != null) {
                             Text(
                                 text = validationError!!,
@@ -235,18 +283,11 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            val value = newValue.toBigDecimalOrNull()
-                            val error = if (value != null) {
-                                viewModel.validatePotInputs(newName, value, newType, viewModel.selectedPot?.potId)
-                            } else {
-                                "Invalid number format"
-                            }
-                            if (error == null && value != null) {
+                            if (validationError == null) {
+                                val value = newValue.toBigDecimal()
                                 viewModel.editPot(newName, newType, value)
                                 showEditDialog = false
                                 showConfirmationDialog = true
-                            } else {
-                                validationError = error
                             }
                         },
                         enabled = isFormChanged && validationError == null

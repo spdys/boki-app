@@ -299,6 +299,15 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         if (name.isBlank()) return "Pot name cannot be empty"
         if (value <= BigDecimal.ZERO) return "Allocation value must be greater than zero"
         if (type == AllocationType.PERCENTAGE && value >= BigDecimal.ONE) return "Percentage cannot exceed 100%"
+        if (type == AllocationType.PERCENTAGE) {
+            val currentPotIdSet = currentPotId ?: -1
+            val totalPercentage = mainAccountSummary?.pots
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE && it.potId != currentPotIdSet }
+                ?.sumOf { it.allocationValue } ?: BigDecimal.ZERO
+            if (totalPercentage + value > BigDecimal.ONE) {
+                return "Total percentage for all pots cannot be more than 100%"
+            }
+        }
         if (mainAccountSummary?.pots?.any {
                 it.name.equals(name, ignoreCase = true) && it.potId != currentPotId
             } == true) return "Another pot with this name already exists"
