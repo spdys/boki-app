@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.joincoded.bankapi.components.CreateOrEditPotPopup
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -193,134 +194,25 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
         }
 
         if (showEditDialog) {
-            var newName by remember { mutableStateOf(pot.name) }
-            var newType by remember { mutableStateOf(pot.allocationType) }
-            var newValue by remember { mutableStateOf(pot.allocationValue.toPlainString()) }
-            var validationError by remember { mutableStateOf<String?>(null) }
-            var lastSelectedType by remember { mutableStateOf(pot.allocationType) }
+            val totalAllocated = viewModel.mainAccountSummary?.pots
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE }
+                ?.sumOf {
+                    if (it.potId == pot.potId) pot.allocationValue else it.allocationValue
+                }?.let { "Total allocated so far: ${(it * BigDecimal(100)).toInt()}%" }
 
-            // Validation effect: update validation error when any input changes
-            LaunchedEffect(newName, newType, newValue) {
-                val value = newValue.toBigDecimalOrNull()
-                validationError = if (value != null) {
-                    viewModel.validatePotInputs(newName, value, newType, viewModel.selectedPot?.potId)
-                } else {
-                    "Invalid number format"
-                }
-            }
-
-            // Compute whether the form values have changed
-            val isFormChanged = newName != pot.name ||
-                    newType != pot.allocationType ||
-                    newValue != pot.allocationValue.toPlainString()
-
-            AlertDialog(
-                onDismissRequest = { showEditDialog = false },
-                title = { Text("Edit Pot") },
-                text = {
-                    var sliderPosition by remember { mutableFloatStateOf(pot.allocationValue.toFloat()) }
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
-                            value = newName,
-                            onValueChange = { newName = it },
-                            label = { Text("Pot Name") },
-                            singleLine = true
-                        )
-                        DropdownMenuBox(
-                            selected = newType,
-                            onSelectedChange = {
-                                if (it != newType) {
-                                    newType = it
-                                    lastSelectedType = it
-                                    newValue = if (it == AllocationType.PERCENTAGE) "0.0" else "0"
-                                    sliderPosition = 0f
-                                }
-                            }
-                        )
-                        if (newType == AllocationType.PERCENTAGE) {
-                            // Update newValue when sliderPosition changes
-                            LaunchedEffect(sliderPosition) {
-                                newValue = sliderPosition.toBigDecimal().toPlainString()
-                            }
-
-                            Column {
-                                Text(
-                                    "Allocation Percentage: ${(sliderPosition * 100).toInt()}%",
-                                    style = BokiTheme.typography.bodyMedium
-                                )
-                                Slider(
-                                    value = sliderPosition,
-                                    onValueChange = { sliderPosition = it },
-                                    valueRange = 0f..1f,
-                                    steps = 19 // for 5% steps
-                                )
-                                val currentPotId = viewModel.selectedPot?.potId
-                                val originalValue = viewModel.selectedPot?.allocationValue ?: BigDecimal.ZERO
-
-                                val totalAllocated = viewModel.mainAccountSummary?.pots
-                                    ?.filter { it.allocationType == AllocationType.PERCENTAGE }
-                                    ?.sumOf {
-                                        if (it.potId == currentPotId) originalValue else it.allocationValue
-                                    } ?: BigDecimal.ZERO
-
-                                Text(
-                                    text = "Total allocated so far: ${(totalAllocated * BigDecimal(100)).toInt()}%",
-                                    style = BokiTheme.typography.labelSmall,
-                                    color = BokiTheme.colors.textSecondary
-                                )
-                            }
-                        } else {
-                            OutlinedTextField(
-                                value = newValue,
-                                onValueChange = { newValue = it },
-                                label = { Text("Allocation Value") },
-                                singleLine = true
-                            )
-                        }
-                        if (validationError != null) {
-                            Text(
-                                text = validationError!!,
-                                color = BokiTheme.colors.error,
-                                style = BokiTheme.typography.bodySmall
-                            )
-                        }
-                    }
+            CreateOrEditPotPopup(
+                initialName = pot.name,
+                initialType = pot.allocationType,
+                initialValue = pot.allocationValue.toPlainString(),
+                currency = currency,
+                totalAllocatedText = totalAllocated,
+                showDialog = showEditDialog,
+                onDismiss = { showEditDialog = false },
+                onConfirm = { name, type, value ->
+                    viewModel.editPot(name, type, value)
                 },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            if (validationError == null) {
-                                val value = newValue.toBigDecimal()
-                                viewModel.editPot(newName, newType, value)
-                                showEditDialog = false
-                                showConfirmationDialog = true
-                            }
-                        },
-                        enabled = isFormChanged && validationError == null
-                    ) {
-                        Text("Save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showEditDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
-
-        // Confirmation dialog outside AlertDialog
-        if (showConfirmationDialog) {
-            AlertDialog(
-                onDismissRequest = { showConfirmationDialog = false },
-                title = { Text("Update Scheduled") },
-                text = {
-                    Text("Allocation changes will take effect on the next salary deposit. The current balance remains unchanged.")
-                },
-                confirmButton = {
-                    TextButton(onClick = { showConfirmationDialog = false }) {
-                        Text("OK")
-                    }
+                validateInput = { name, value, type ->
+                    viewModel.validatePotInputs(name, value, type, pot.potId)
                 }
             )
         }
@@ -363,40 +255,5 @@ private fun PotDetailRow(
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f)
         )
-    }
-}
-
-@Composable
-private fun DropdownMenuBox(
-    selected: AllocationType,
-    onSelectedChange: (AllocationType) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val options = AllocationType.values()
-
-    Box {
-        OutlinedTextField(
-            value = selected.name,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Allocation Type") },
-            modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                IconButton(onClick = { expanded = true }) {
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                }
-            }
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { type ->
-                DropdownMenuItem(
-                    text = { Text(type.name) },
-                    onClick = {
-                        onSelectedChange(type)
-                        expanded = false
-                    }
-                )
-            }
-        }
     }
 }
