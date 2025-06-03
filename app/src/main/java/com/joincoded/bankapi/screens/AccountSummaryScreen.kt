@@ -113,7 +113,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         Spacer(modifier = Modifier.height(120.dp))
                     }
                 }
-            } else {
+            } else if (account.accountType == AccountType.MAIN) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = BokiTheme.shapes.card,
@@ -128,7 +128,7 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No savings pots available",
+                            text = "You have not created any pots yet.",
                             color = BokiTheme.colors.textSecondary,
                             style = BokiTheme.typography.bodyMedium
                         )
