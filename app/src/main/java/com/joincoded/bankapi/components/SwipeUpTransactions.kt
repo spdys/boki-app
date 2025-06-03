@@ -310,54 +310,54 @@ private fun getAmountPrefix(transactionType: String): String {
 @Preview(showBackground = true)
 @Composable
 fun SwipeUpTransactionListPreview() {
-    val sampleTransactions = listOf(
-        TransactionHistoryResponse(
-            id = 1L,
-            amount = BigDecimal("250.000"),
-            transactionType = "DEPOSIT",
-            description = "Salary Payment",
-            createdAt = LocalDateTime.now().minusHours(2)
-        ),
-        TransactionHistoryResponse(
-            id = 2L,
-            amount = BigDecimal("45.500"),
-            transactionType = "WITHDRAWAL",
-            description = "Coffee Shop",
-            createdAt = LocalDateTime.now().minusHours(5)
-        ),
-        TransactionHistoryResponse(
-            id = 3L,
-            amount = BigDecimal("12.750"),
-            transactionType = "DEBIT",
-            description = "Grocery Store",
-            createdAt = LocalDateTime.now().minusDays(1)
-        ),
-        TransactionHistoryResponse(
-            id = 4L,
-            amount = BigDecimal("100.000"),
-            transactionType = "TRANSFER",
-            description = "Transfer to Savings",
-            createdAt = LocalDateTime.now().minusDays(2)
-        ),
-        TransactionHistoryResponse(
-            id = 5L,
-            amount = BigDecimal("75.250"),
-            transactionType = "CREDIT",
-            description = "Refund",
-            createdAt = LocalDateTime.now().minusDays(3)
-        )
-    )
+//    val sampleTransactions = listOf(
+//        TransactionHistoryResponse(
+//            id = 1L,
+//            amount = BigDecimal("250.000"),
+//            transactionType = "DEPOSIT",
+//            description = "Salary Payment",
+//            createdAt = LocalDateTime.now().minusHours(2)
+//        ),
+//        TransactionHistoryResponse(
+//            id = 2L,
+//            amount = BigDecimal("45.500"),
+//            transactionType = "WITHDRAWAL",
+//            description = "Coffee Shop",
+//            createdAt = LocalDateTime.now().minusHours(5)
+//        ),
+//        TransactionHistoryResponse(
+//            id = 3L,
+//            amount = BigDecimal("12.750"),
+//            transactionType = "DEBIT",
+//            description = "Grocery Store",
+//            createdAt = LocalDateTime.now().minusDays(1)
+//        ),
+//        TransactionHistoryResponse(
+//            id = 4L,
+//            amount = BigDecimal("100.000"),
+//            transactionType = "TRANSFER",
+//            description = "Transfer to Savings",
+//            createdAt = LocalDateTime.now().minusDays(2)
+//        ),
+//        TransactionHistoryResponse(
+//            id = 5L,
+//            amount = BigDecimal("75.250"),
+//            transactionType = "CREDIT",
+//            description = "Refund",
+//            createdAt = LocalDateTime.now().minusDays(3)
+//        )
+//    )
 
-    BankAPITheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BokiTheme.gradient)
-        ) {
-            SwipeUpTransactionList(
-                transactions = sampleTransactions,
-                currency = "KWD"
-            )
-        }
-    }
+//    BankAPITheme {
+//        Box(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .background(BokiTheme.gradient)
+//        ) {
+//            SwipeUpTransactionList(
+//                transactions = sampleTransactions,
+//                currency = "KWD"
+//            )
+//        }
+//    }
 }

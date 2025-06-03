@@ -19,6 +19,7 @@ import com.joincoded.bankapi.components.AddToPotDialog
 import com.joincoded.bankapi.components.PotActionsCard
 import com.joincoded.bankapi.components.TransactionBottomSheet
 import com.joincoded.bankapi.components.TransactionSource
+import com.joincoded.bankapi.components.WithdrawFromPotDialog
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -26,7 +27,7 @@ import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PotSummaryScreen(viewModel: BankViewModel = viewModel()) {
+fun PotSummaryScreen(viewModel: BankViewModel) {
     val pot = viewModel.selectedPot
     if (pot == null) {
         Text("No pot selected")
@@ -34,7 +35,7 @@ fun PotSummaryScreen(viewModel: BankViewModel = viewModel()) {
     }
     val currency by remember { derivedStateOf { viewModel.mainAccountSummary?.currency ?: "KWD" } }
 
-    LaunchedEffect(pot.potId) {
+    LaunchedEffect(Unit) {
         viewModel.getPotTransactionHistory()
     }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -199,6 +200,7 @@ fun PotSummaryScreen(viewModel: BankViewModel = viewModel()) {
 
                 PotActionsCard(
                     onAddClick = { showAddDialog = true },
+                    onWithdrawClick = {showAddDialog = true},
                     modifier = Modifier.padding(16.dp)
                 )
                 AddToPotDialog(
@@ -216,12 +218,26 @@ fun PotSummaryScreen(viewModel: BankViewModel = viewModel()) {
                     isLoading = isLoading,
                     errorMessage = amountError
                 )
+
+                WithdrawFromPotDialog(
+                    isVisible = showAddDialog,
+                    amount = amount,
+                    onAmountChange = { viewModel.updateAmount(it) },
+                    onConfirm = {
+                        viewModel.withdrawFromPot()
+                        showAddDialog = false
+                    },
+                    onDismiss = {
+                        showAddDialog = false
+                        viewModel.clearAmount()
+                    },
+                    isLoading = isLoading,
+                    errorMessage = amountError)
             }
         }
         if (showBottomSheet.value) {
             TransactionBottomSheet(
                 viewModel = viewModel,
-                sheetState = bottomSheetState,
                 onDismiss = {
                     showBottomSheet.value = false
                 },

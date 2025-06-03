@@ -189,7 +189,6 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
         if (showBottomSheet.value) {
             TransactionBottomSheet(
                 viewModel = viewModel,
-                sheetState = bottomSheetState,
                 onDismiss = {
                     showBottomSheet.value = false
                 },

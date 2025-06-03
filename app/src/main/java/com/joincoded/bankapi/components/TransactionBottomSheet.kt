@@ -43,17 +43,16 @@ enum class TransactionSource {
 fun TransactionBottomSheet(
     viewModel: BankViewModel,
     onDismiss: () -> Unit,
-    sheetState: SheetState,
+
     transactionSource: TransactionSource,
     modifier: Modifier = Modifier
 ) {
-
+    val sheetState = rememberModalBottomSheetState()
     val transactions = when (transactionSource) {
         TransactionSource.POT -> viewModel.potTransactions ?: emptyList()
         TransactionSource.ACCOUNT -> viewModel.accountTransactions ?: emptyList()
     }
     val currency: String = "KWD"
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
@@ -61,24 +60,25 @@ fun TransactionBottomSheet(
         shape = BokiTheme.shapes.bottomSheet,
         containerColor = BokiTheme.colors.cardBackground,
         contentColor = BokiTheme.colors.onBackground,
-        dragHandle = {
-            // Custom drag handle with Boki styling
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(40.dp)
-                        .height(4.dp)
-                        .background(
-                            BokiTheme.colors.textSecondary.copy(alpha = 0.5f),
-                            BokiTheme.shapes.small
-                        )
-                )
-            }
-        }
+
+//        dragHandle = {
+//            // Custom drag handle with Boki styling
+//            Box(
+//                modifier = Modifier
+//                    .padding(vertical = 12.dp),
+//                contentAlignment = Alignment.Center
+//            ) {
+//                Box(
+//                    modifier = Modifier
+//                        .width(40.dp)
+//                        .height(4.dp)
+//                        .background(
+//                            BokiTheme.colors.textSecondary.copy(alpha = 0.5f),
+//                            BokiTheme.shapes.small
+//                        )
+//                )
+//            }
+//        }
     ) {
         Column(
             modifier = Modifier
@@ -336,62 +336,62 @@ private fun getAmountPrefix(transactionType: String): String {
 fun TransactionFloatingButtonPreview() {
     // Note: This preview shows sample data, but in real usage the button
     // only appears when viewModel.potTransactions has data
-    val sampleTransactions = listOf(
-        TransactionHistoryResponse(
-            id = 1L,
-            amount = BigDecimal("250.000"),
-            transactionType = "DEPOSIT",
-            description = "Salary Payment",
-            createdAt = LocalDateTime.now().minusHours(2)
-        ),
-        TransactionHistoryResponse(
-            id = 2L,
-            amount = BigDecimal("45.500"),
-            transactionType = "WITHDRAWAL",
-            description = "Coffee Shop",
-            createdAt = LocalDateTime.now().minusHours(5)
-        )
-    )
-
-    BankAPITheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BokiTheme.gradient),
-            contentAlignment = Alignment.BottomEnd
-        ) {
-            // For preview purposes, simulate the button appearance
-            Card(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = BokiTheme.shapes.medium,
-                        ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.3f)
-                    ),
-                shape = BokiTheme.shapes.medium,
-                colors = CardDefaults.cardColors(
-                    containerColor = BokiTheme.colors.secondary
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ReceiptLong,
-                        contentDescription = "View Transactions",
-                        tint = BokiTheme.colors.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "View Transactions (${sampleTransactions.size})",
-                        style = BokiTheme.typography.labelLarge,
-                        color = BokiTheme.colors.onPrimary
-                    )
-                }
-            }
-        }
-    }
+//    val sampleTransactions = listOf(
+//        TransactionHistoryResponse(
+//            id = 1L,
+//            amount = BigDecimal("250.000"),
+//            transactionType = "DEPOSIT",
+//            description = "Salary Payment",
+//            createdAt = LocalDateTime.now().minusHours(2)
+//        ),
+//        TransactionHistoryResponse(
+//            id = 2L,
+//            amount = BigDecimal("45.500"),
+//            transactionType = "WITHDRAWAL",
+//            description = "Coffee Shop",
+//            createdAt = LocalDateTime.now().minusHours(5)
+//        )
+//    )
+//
+//    BankAPITheme {
+//        Box(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .background(BokiTheme.gradient),
+//            contentAlignment = Alignment.BottomEnd
+//        ) {
+//            // For preview purposes, simulate the button appearance
+//            Card(
+//                modifier = Modifier
+//                    .padding(16.dp)
+//                    .shadow(
+//                        elevation = 8.dp,
+//                        shape = BokiTheme.shapes.medium,
+//                        ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.3f)
+//                    ),
+//                shape = BokiTheme.shapes.medium,
+//                colors = CardDefaults.cardColors(
+//                    containerColor = BokiTheme.colors.secondary
+//                )
+//            ) {
+//                Row(
+//                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+//                    verticalAlignment = Alignment.CenterVertically
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.ReceiptLong,
+//                        contentDescription = "View Transactions",
+//                        tint = BokiTheme.colors.onPrimary,
+//                        modifier = Modifier.size(20.dp)
+//                    )
+//                    Spacer(modifier = Modifier.width(8.dp))
+//                    Text(
+//                        text = "View Transactions (${sampleTransactions.size})",
+//                        style = BokiTheme.typography.labelLarge,
+//                        color = BokiTheme.colors.onPrimary
+//                    )
+//                }
+//            }
+//        }
+//    }
 }

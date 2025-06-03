@@ -38,6 +38,7 @@ import com.joincoded.bankapi.ui.theme.BokiTheme
 @Composable
 fun PotActionsCard(
     onAddClick: () -> Unit,
+    onWithdrawClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -80,7 +81,7 @@ fun PotActionsCard(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { /* Withdraw onclick later */ }
+                    .clickable { onWithdrawClick() }
                     .padding(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -199,12 +200,89 @@ fun AddToPotDialog(
     }
 }
 
+@Composable
+fun WithdrawFromPotDialog(
+    isVisible: Boolean,
+    amount: String,
+    onAmountChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    isLoading: Boolean = false,
+    errorMessage: String? = null
+) {
+    if (isVisible) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text(
+                    text = "Withdraw from Pot",
+                    style = BokiTheme.typography.titleBold,
+                    color = BokiTheme.colors.onBackground
+                )
+            },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = amount,
+                        onValueChange = onAmountChange,
+                        label = { Text("Amount") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = errorMessage != null,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = BokiTheme.colors.primary,
+                            focusedLabelColor = BokiTheme.colors.primary
+                        )
+                    )
+
+                    errorMessage?.let { error ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = error,
+                            color = Color(0xFFF44336),
+                            style = BokiTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onConfirm,
+                    enabled = !isLoading && amount.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BokiTheme.colors.primary
+                    )
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Withdraw", color = Color.Red)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = "Cancel",
+                        color = BokiTheme.colors.textSecondary
+                    )
+                }
+            }
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun PotActionsCardPreview() {
     BankAPITheme {
         PotActionsCard(
             onAddClick = {},
+            onWithdrawClick = {},
             modifier = Modifier.padding(16.dp)
         )
     }

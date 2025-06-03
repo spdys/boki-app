@@ -16,6 +16,7 @@ import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
 import com.joincoded.bankapi.data.PotDepositRequest
 import com.joincoded.bankapi.data.PotSummaryDto
+import com.joincoded.bankapi.data.PotTransferRequest
 import com.joincoded.bankapi.data.TransactionHistoryRequest
 import com.joincoded.bankapi.data.TransactionHistoryResponse
 import com.joincoded.bankapi.data.UserCreationRequest
@@ -408,29 +409,84 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+//    fun addToPot() {
+//        viewModelScope.launch {
+//            _isLoading.value = true
+//            val amountValue = validateAmount(amount.value ?: "")
+//            if (amountValue != null) {
+//                val response = apiBankService.depositToPot(PotDepositRequest(
+//                    sourceAccountId = mainAccountSummary!!.accountId,
+//                    destinationPotId = selectedPot!!.potId,
+//                    amount = amountValue
+//                ))
+//                if (response.isSuccessful) {
+//                    _isSuccessful.value = true
+//                    _isLoading.value = false
+//
+//                } else {
+//                    _error.value =
+//                        parseErrorBody(response.errorBody()) ?: "Failed add funds to pot"
+//                    _isLoading.value = false
+//                }
+//            }
+//        }
+//    }
+
     fun addToPot() {
         viewModelScope.launch {
             _isLoading.value = true
-            val amountValue = validateAmount(amount.value ?: "")
-            if (amountValue != null) {
-                val response = apiBankService.depositToPot(PotDepositRequest(
-                    sourceAccountId = mainAccountSummary!!.accountId,
-                    destinationPotId = selectedPot!!.potId,
-                    amount = amountValue
-                ))
-                Log.d("AddToPot", "Response code: ${response.code()}")
-                Log.d("AddToPot", "Is successful: ${response.isSuccessful}")
-                if (response.isSuccessful) {
-                    _isSuccessful.value = true
-                    _isLoading.value = false
-                    Log.d("AddToPot", "Body: ${response.body()}")
+            try {
+                val amountValue = validateAmount(amount.value ?: "")
+                if (amountValue != null) {
+                    val response = apiBankService.depositToPot(PotDepositRequest(
+                        sourceAccountId = mainAccountSummary!!.accountId,
+                        destinationPotId = selectedPot!!.potId,
+                        amount = amountValue
+                    ))
 
-
+                    if (response.isSuccessful) {
+                        _isSuccessful.value = true
+                        // refresh data here
+                        fetchAccountsAndSummary()
+                    } else {
+                        _error.value = parseErrorBody(response.errorBody()) ?: "Failed to add funds to pot"
+                    }
                 } else {
-                    _error.value =
-                        parseErrorBody(response.errorBody()) ?: "Failed add funds to pot"
-                    _isLoading.value = false
+                    _error.value = "Invalid amount entered"
                 }
+            } catch (e: Exception) {
+                _error.value = "Network error: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun withdrawFromPot() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val amountValue = validateAmount(amount.value ?: "")
+                if (amountValue != null) {
+                    val response = apiBankService.withdrawalToAccount(PotTransferRequest(
+                        sourcePotId = selectedPot!!.potId,
+                        amount = amountValue
+                    ))
+
+                    if (response.isSuccessful) {
+                        _isSuccessful.value = true
+                        // refresh data here
+                        fetchAccountsAndSummary()
+                    } else {
+                        _error.value = parseErrorBody(response.errorBody()) ?: "Failed to add funds to pot"
+                    }
+                } else {
+                    _error.value = "Invalid amount entered"
+                }
+            } catch (e: Exception) {
+                _error.value = "Network error: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -443,7 +499,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                     _amountError.value = "Amount must be greater than 0"
                     null
                 }
-                value > (selectedAccount?.balance ?: BigDecimal.ZERO) -> {
+                value > (mainAccountSummary!!.balance ?: BigDecimal.ZERO) -> {
                     _amountError.value = "Insufficient balance"
                     null
                 }
