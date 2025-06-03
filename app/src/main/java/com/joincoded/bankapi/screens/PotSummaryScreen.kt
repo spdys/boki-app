@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.joincoded.bankapi.ui.theme.BokiTheme
@@ -253,9 +254,14 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                                     valueRange = 0f..1f,
                                     steps = 19 // for 5% steps
                                 )
+                                val currentPotId = viewModel.selectedPot?.potId
+                                val originalValue = viewModel.selectedPot?.allocationValue ?: BigDecimal.ZERO
+
                                 val totalAllocated = viewModel.mainAccountSummary?.pots
-                                    ?.filter { it.allocationType == AllocationType.PERCENTAGE && it.potId != viewModel.selectedPot?.potId }
-                                    ?.sumOf { it.allocationValue } ?: BigDecimal.ZERO
+                                    ?.filter { it.allocationType == AllocationType.PERCENTAGE }
+                                    ?.sumOf {
+                                        if (it.potId == currentPotId) originalValue else it.allocationValue
+                                    } ?: BigDecimal.ZERO
 
                                 Text(
                                     text = "Total allocated so far: ${(totalAllocated * BigDecimal(100)).toInt()}%",
@@ -325,7 +331,7 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
 private fun PotDetailRow(
     label: String,
     value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: ImageVector
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
