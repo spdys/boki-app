@@ -229,10 +229,10 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                     onAmountChange = { viewModel.updateAmount(it) },
                     onConfirm = {
                         viewModel.withdrawFromPot()
-                        showAddDialog = false
+                        showWithdrawDialog = false
                     },
                     onDismiss = {
-                        showAddDialog = false
+                        showWithdrawDialog = false
                         viewModel.clearAmount()
                     },
                     isLoading = isLoading,
@@ -247,10 +247,10 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
                     onDestinationPotSelected = { viewModel.setDestinationPot(it) },
                     onConfirm = {
                         viewModel.transferBetweenPots()
-                        showAddDialog = false
+                        showTransferDialog = false
                     },
                     onDismiss = {
-                        showAddDialog = false
+                        showTransferDialog = false
                         viewModel.clearAmount()
                         viewModel.clearDestinationPot()
                     },
