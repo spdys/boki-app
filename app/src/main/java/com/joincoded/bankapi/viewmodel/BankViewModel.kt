@@ -411,11 +411,6 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 } else {
                     _error.value = parseErrorBody(response.errorBody()) ?: "Failed to update pot"
-                    val fullName = response.body()?.fullName ?: ""
-                    SharedPreferencesManager.saveUserName(context, fullName)
-                } else {
-                    _error.value =
-                        parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
                 }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Unable to update pot"
@@ -424,6 +419,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
 
     fun getPotTransactionHistory() {
         viewModelScope.launch {
@@ -499,57 +495,48 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-//    fun addToPot() {
-//        viewModelScope.launch {
-//            _isLoading.value = true
-//            val amountValue = validateAmount(amount.value ?: "")
-//            if (amountValue != null) {
-//                val response = apiBankService.depositToPot(PotDepositRequest(
-//                    sourceAccountId = mainAccountSummary!!.accountId,
-//                    destinationPotId = selectedPot!!.potId,
-//                    amount = amountValue
-//                ))
-//                if (response.isSuccessful) {
-//                    _isSuccessful.value = true
-//                    _isLoading.value = false
-//
-//                } else {
-//                    _error.value =
-//                        parseErrorBody(response.errorBody()) ?: "Failed add funds to pot"
-//                    _isLoading.value = false
-//                }
-//            }
-//        }
-//    }
-
     fun addToPot() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val amountValue = validateAmount(amount.value ?: "")
+                val amountValue = validateAmount(amount.value)
                 if (amountValue != null) {
-                    val response = apiBankService.depositToPot(PotDepositRequest(
+                    val request = PotDepositRequest(
                         sourceAccountId = mainAccountSummary!!.accountId,
                         destinationPotId = selectedPot!!.potId,
                         amount = amountValue
-                    ))
+                    )
 
+                    val response = apiBankService.depositToPot(request)
                     if (response.isSuccessful) {
-                        _isSuccessful.value = true
-                        // refresh data here
-                        fetchAccountsAndSummary()
+                        val updated = response.body()
+                        if (updated != null) {
+                            selectedPot = PotSummaryDto(
+                                potId = selectedPot!!.potId,
+                                name = selectedPot!!.name,
+                                balance = updated.newPotBalance,
+                                cardToken = selectedPot!!.cardToken,
+                                allocationType = selectedPot!!.allocationType,
+                                allocationValue = selectedPot!!.allocationValue
+                            )
+                            _isSuccessful.value = true
+                        } else {
+                            _error.value =
+                                parseErrorBody(response.errorBody()) ?: "Failed to add funds to pot"
+                        }
                     } else {
-                        _error.value = parseErrorBody(response.errorBody()) ?: "Failed to add funds to pot"
+                        _error.value = "Invalid amount entered"
                     }
                 } else {
-                    _error.value = "Invalid amount entered"
+                    _error.value = "Unable to update pot"
+
                 }
-            } catch (e: Exception) {
-                _error.value = "Network error: ${e.message}"
-            } finally {
-                _isLoading.value = false
+                } catch (e: Exception) {
+                    _error.value = "Network error: ${e.message}"
+                } finally {
+                    _isLoading.value = false
+                }
             }
-        }
     }
 
     fun withdrawFromPot() {
@@ -558,20 +545,33 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val amountValue = validateAmount(amount.value ?: "")
                 if (amountValue != null) {
-                    val response = apiBankService.withdrawalToAccount(PotTransferRequest(
+                    val request = PotTransferRequest(
                         sourcePotId = selectedPot!!.potId,
                         amount = amountValue
-                    ))
+                    )
+                    val response = apiBankService.withdrawalToAccount(request)
 
                     if (response.isSuccessful) {
-                        _isSuccessful.value = true
-                        // refresh data here
-                        fetchAccountsAndSummary()
+                        val updated = response.body()
+                        if (updated != null) {
+                            selectedPot = PotSummaryDto(
+                                potId = selectedPot!!.potId,
+                                name = selectedPot!!.name,
+                                balance = updated.newPotBalance,
+                                cardToken = selectedPot!!.cardToken,
+                                allocationType = selectedPot!!.allocationType,
+                                allocationValue = selectedPot!!.allocationValue
+                            )
+                            _isSuccessful.value = true
+                        } else {
+                            _error.value =
+                                parseErrorBody(response.errorBody()) ?: "Failed to withdraw from pot"
+                        }
                     } else {
-                        _error.value = parseErrorBody(response.errorBody()) ?: "Failed to add funds to pot"
+                        _error.value = "Invalid amount entered"
                     }
                 } else {
-                    _error.value = "Invalid amount entered"
+                    _error.value = "Unable to withdraw from pot"
                 }
             } catch (e: Exception) {
                 _error.value = "Network error: ${e.message}"
@@ -612,20 +612,31 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                         _error.value = "Source pot not selected"
                     }
                     else -> {
-                        val response = apiBankService.transfer(TransferRequest(
+                        val request = TransferRequest(
                             sourceId = selectedPot!!.potId,
                             destinationId = destinationPot.potId,
                             amount = amountValue
-                        ))
+                        )
+                        val response = apiBankService.transfer(request)
 
                         if (response.isSuccessful) {
-                            _isSuccessful.value = true
-                            // Clear selections after successful transfer
-                            clearDestinationPot()
-                            // Refresh data
-                            fetchAccountsAndSummary()
+                            val updated = response.body()
+                            if (updated != null) {
+                                selectedPot = PotSummaryDto(
+                                    potId = selectedPot!!.potId,
+                                    name = selectedPot!!.name,
+                                    balance = updated.newBalanceAfter,
+                                    cardToken = selectedPot!!.cardToken,
+                                    allocationType = selectedPot!!.allocationType,
+                                    allocationValue = selectedPot!!.allocationValue
+                                )
+                                _isSuccessful.value = true
+                            } else {
+                                _error.value =
+                                    parseErrorBody(response.errorBody()) ?: "Failed to transfer between pots"
+                            }
                         } else {
-                            _error.value = parseErrorBody(response.errorBody()) ?: "Failed to transfer between pots"
+                            _error.value = "Invalid amount entered"
                         }
                     }
                 }
