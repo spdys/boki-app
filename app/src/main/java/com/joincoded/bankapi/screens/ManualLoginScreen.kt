@@ -5,23 +5,27 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +43,10 @@ fun ManualLoginScreen(
     navigateToRegister: () -> Unit
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
+
+    // Collect states from BankViewModel
     val error by bankViewModel.error.collectAsState()
     val isLoading by bankViewModel.isLoading.collectAsState()
     val isSuccessful by bankViewModel.isSuccessful.collectAsState()
@@ -57,9 +65,9 @@ fun ManualLoginScreen(
     // Saved user's first name for greeting
     val savedName = SharedPreferencesManager.getFirstName(context)
     val greetingText = if (savedName.isNotEmpty()) {
-        "Welcome to your virtual wallet, $savedName!"
+        "Welcome back, $savedName!"
     } else {
-        "Welcome to your virtual wallet!"
+        "Welcome Back!"
     }
 
     // Lockout countdown timer
@@ -112,7 +120,7 @@ fun ManualLoginScreen(
         if (isSuccessful) {
             // Reset attempts on successful login
             failedAttempts = 0
-            // Username saving now happens in RegistrationScreen, not here
+            SharedPreferencesManager.saveLastUsername(context, username.trim())
             onLoginSuccess()
             bankViewModel.clearStates()
         }
@@ -137,62 +145,103 @@ fun ManualLoginScreen(
             .fillMaxSize()
             .background(BokiTheme.gradient)
     ) {
-        // Header with Sign Up option
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
+        // Background decorative elements
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            TextButton(
-                onClick = navigateToRegister,
-                colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-            ) {
-                Text(
-                    text = "Sign Up",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            // Floating accent circles for visual interest
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .offset(x = (-20).dp, y = 100.dp)
+                    .background(
+                        BokiTheme.colors.secondary.copy(alpha = 0.1f),
+                        BokiTheme.shapes.circle
+                    )
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .offset(x = 300.dp, y = 200.dp)
+                    .background(
+                        BokiTheme.colors.info.copy(alpha = 0.08f),
+                        BokiTheme.shapes.circle
+                    )
+            )
         }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(scrollState)
                 .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Boki Logo - Above greeting
-            Image(
-                painter = painterResource(id = R.drawable.boki_logo_dark_mode),
-                contentDescription = "Boki Logo",
-                modifier = Modifier
-                    .size(80.dp)
-                    .padding(bottom = 16.dp)
-            )
+            // Top spacing - responsive to screen size
+            Spacer(modifier = Modifier.height(60.dp))
 
-            // Greeting text - smaller
+            // Logo Section
+            Card(
+                modifier = Modifier
+                    .size(180.dp)
+                    .shadow(
+                        elevation = 20.dp,
+                        shape = BokiTheme.shapes.circle,
+                        ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.3f),
+                        spotColor = BokiTheme.colors.secondary.copy(alpha = 0.3f)
+                    ),
+                shape = BokiTheme.shapes.circle,
+                colors = CardDefaults.cardColors(
+                    containerColor = BokiTheme.colors.cardBackground
+                )
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.boki_logo_dark_mode),
+                        contentDescription = "Boki Logo",
+                        modifier = Modifier.size(120.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Welcome Text
             Text(
                 text = greetingText,
-                color = Color.White,
-                fontWeight = FontWeight.Medium,
-                fontSize = 18.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 32.dp)
+                style = BokiTheme.typography.displayMedium,
+                color = BokiTheme.colors.onBackground,
+                textAlign = TextAlign.Center
             )
+
+            Text(
+                text = "Sign in to your account",
+                style = BokiTheme.typography.bodyLarge,
+                color = BokiTheme.colors.textSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
 
             // Show lockout message if locked
             if (isLocked) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 16.dp)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = BokiTheme.shapes.medium
+                        ),
+                    shape = BokiTheme.shapes.medium,
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.Red.copy(alpha = 0.2f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                        containerColor = BokiTheme.colors.error.copy(alpha = 0.1f)
+                    )
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -201,11 +250,13 @@ fun ManualLoginScreen(
                         Text(
                             text = "Too many failed attempts",
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = BokiTheme.colors.error,
+                            style = BokiTheme.typography.labelLarge
                         )
                         Text(
                             text = "App will restart in ${lockoutTimeRemaining}s",
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = BokiTheme.colors.error,
+                            style = BokiTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -217,203 +268,261 @@ fun ManualLoginScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 16.dp)
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = BokiTheme.shapes.medium
+                        ),
+                    shape = BokiTheme.shapes.medium,
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.1f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                        containerColor = BokiTheme.colors.cardBackground
+                    )
                 ) {
                     Text(
                         text = "Warning: $attemptsRemaining ${if (attemptsRemaining == 1) "attempt" else "attempts"} remaining",
                         modifier = Modifier.padding(12.dp),
                         fontWeight = FontWeight.Medium,
-                        color = Color.White,
+                        color = BokiTheme.colors.error,
+                        style = BokiTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
                 }
             }
 
-            // Username Field
-            OutlinedTextField(
-                value = username,
-                onValueChange = {
-                    username = it
-                    if (showValidationErrors && it.trim().isNotEmpty()) {
-                        showValidationErrors = false
-                    }
-                },
-                label = { Text("Username", color = Color.White.copy(alpha = 0.7f)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "Username",
-                        tint = Color.White.copy(alpha = 0.7f)
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                isError = showValidationErrors && username.trim().isEmpty(),
-                enabled = !isLocked,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color.White.copy(alpha = 0.8f),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.4f),
-                    errorBorderColor = Color.Red.copy(alpha = 0.8f),
-                    cursorColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            if (showValidationErrors && username.trim().isEmpty()) {
-                Text(
-                    text = "Username is required",
-                    color = Color.Red.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, top = 4.dp)
+            // Login Form Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = 15.dp,
+                        shape = BokiTheme.shapes.extraLarge,
+                        ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.2f)
+                    ),
+                shape = BokiTheme.shapes.extraLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = BokiTheme.colors.cardBackground
                 )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Password Field
-            OutlinedTextField(
-                value = password,
-                onValueChange = {
-                    password = it
-                    if (showValidationErrors && it.trim().isNotEmpty()) {
-                        showValidationErrors = false
-                    }
-                },
-                label = { Text("Password", color = Color.White.copy(alpha = 0.7f)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = "Password",
-                        tint = Color.White.copy(alpha = 0.7f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    // Username Field
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = {
+                            username = it
+                            if (showValidationErrors && it.trim().isNotEmpty()) {
+                                showValidationErrors = false
+                            }
+                        },
+                        label = {
+                            Text(
+                                "Username",
+                                style = BokiTheme.typography.labelMedium
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = "Username",
+                                tint = BokiTheme.colors.secondary
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = BokiTheme.shapes.medium,
+                        isError = showValidationErrors && username.trim().isEmpty(),
+                        enabled = !isLocked,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = BokiTheme.colors.secondary,
+                            focusedLabelColor = BokiTheme.colors.secondary,
+                            cursorColor = BokiTheme.colors.secondary,
+                            focusedTextColor = BokiTheme.colors.onBackground,
+                            unfocusedTextColor = BokiTheme.colors.onBackground,
+                            unfocusedBorderColor = BokiTheme.colors.textSecondary.copy(alpha = 0.5f),
+                            unfocusedLabelColor = BokiTheme.colors.textSecondary,
+                            errorBorderColor = BokiTheme.colors.error,
+                            errorLabelColor = BokiTheme.colors.error
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        ),
+                        singleLine = true
                     )
-                },
-                trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                            tint = Color.White.copy(alpha = 0.7f)
+
+                    if (showValidationErrors && username.trim().isEmpty()) {
+                        Text(
+                            text = "Username is required",
+                            color = BokiTheme.colors.error,
+                            style = BokiTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, top = 4.dp)
                         )
                     }
-                },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                isError = showValidationErrors && password.trim().isEmpty(),
-                enabled = !isLocked,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color.White.copy(alpha = 0.8f),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.4f),
-                    errorBorderColor = Color.Red.copy(alpha = 0.8f),
-                    cursorColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
 
-            if (showValidationErrors && password.trim().isEmpty()) {
-                Text(
-                    text = "Password is required",
-                    color = Color.Red.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, top = 4.dp)
-                )
-            }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Login Button
-            Button(
-                onClick = { validateAndLogin() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                enabled = !isLoading && !isLocked,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
-                    disabledContainerColor = Color.Gray.copy(alpha = 0.3f)
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.Black,
-                        strokeWidth = 2.dp
+                    // Password Field
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            if (showValidationErrors && it.trim().isNotEmpty()) {
+                                showValidationErrors = false
+                            }
+                        },
+                        label = {
+                            Text(
+                                "Password",
+                                style = BokiTheme.typography.labelMedium
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = "Password",
+                                tint = BokiTheme.colors.secondary
+                            )
+                        },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { passwordVisible = !passwordVisible }
+                            ) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                    tint = BokiTheme.colors.textSecondary
+                                )
+                            }
+                        },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = BokiTheme.shapes.medium,
+                        isError = showValidationErrors && password.trim().isEmpty(),
+                        enabled = !isLocked,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = BokiTheme.colors.secondary,
+                            focusedLabelColor = BokiTheme.colors.secondary,
+                            cursorColor = BokiTheme.colors.secondary,
+                            focusedTextColor = BokiTheme.colors.onBackground,
+                            unfocusedTextColor = BokiTheme.colors.onBackground,
+                            unfocusedBorderColor = BokiTheme.colors.textSecondary.copy(alpha = 0.5f),
+                            unfocusedLabelColor = BokiTheme.colors.textSecondary,
+                            errorBorderColor = BokiTheme.colors.error,
+                            errorLabelColor = BokiTheme.colors.error
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                focusManager.clearFocus()
+                                validateAndLogin()
+                            }
+                        ),
+                        singleLine = true
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+
+                    if (showValidationErrors && password.trim().isEmpty()) {
+                        Text(
+                            text = "Password is required",
+                            color = BokiTheme.colors.error,
+                            style = BokiTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, top = 4.dp)
+                        )
+                    }
+
+                    // Error Display (for non-validation errors)
+                    error?.let { errorMessage ->
+                        if (!errorMessage.contains("Wrong credentials", ignoreCase = true) &&
+                            !errorMessage.contains("Invalid", ignoreCase = true) &&
+                            !errorMessage.contains("credentials", ignoreCase = true)) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = BokiTheme.shapes.medium,
+                                colors = CardDefaults.cardColors(
+                                    containerColor = BokiTheme.colors.error.copy(alpha = 0.1f)
+                                )
+                            ) {
+                                Text(
+                                    text = errorMessage,
+                                    color = BokiTheme.colors.error,
+                                    style = BokiTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Login Button
+                    Button(
+                        onClick = { validateAndLogin() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        enabled = !isLoading && !isLocked,
+                        shape = BokiTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BokiTheme.colors.secondary,
+                            contentColor = BokiTheme.colors.onPrimary,
+                            disabledContainerColor = BokiTheme.colors.textSecondary.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = BokiTheme.colors.onPrimary,
+                                strokeWidth = 3.dp
+                            )
+                        } else {
+                            Text(
+                                text = if (isLocked) "Locked" else "Sign In",
+                                style = BokiTheme.typography.labelLarge
+                            )
+                        }
+                    }
                 }
-                Text(
-                    text = if (isLoading) "Logging in..."
-                    else if (isLocked) "Locked"
-                    else "Login",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Fingerprint Button - No background
-            Button(
-                onClick = { /* Handle fingerprint authentication */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                enabled = !isLocked,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Fingerprint,
-                    contentDescription = "Fingerprint",
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Use Fingerprint",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Sign Up Link
+            // Register Link
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Don't have an account? Create a new user ",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 14.sp
+                    text = "No account? ",
+                    style = BokiTheme.typography.bodyMedium,
+                    color = BokiTheme.colors.textSecondary
                 )
+
                 TextButton(
                     onClick = navigateToRegister,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = BokiTheme.colors.secondary
+                    )
                 ) {
                     Text(
-                        text = "here",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                        text = "Register",
+                        style = BokiTheme.typography.labelLarge
                     )
                 }
             }
+
+            // Bottom spacing to ensure register link is always accessible
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

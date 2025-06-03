@@ -1,30 +1,42 @@
 package com.joincoded.bankapi.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import com.joincoded.bankapi.data.CardPaymentRequest
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
+import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.AuthenticationRequest
 import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
+import com.joincoded.bankapi.data.PotDepositRequest
+import com.joincoded.bankapi.data.PotRequest
 import com.joincoded.bankapi.data.PotSummaryDto
+import com.joincoded.bankapi.data.PotTransferRequest
+import com.joincoded.bankapi.data.TransactionHistoryRequest
+import com.joincoded.bankapi.data.TransactionHistoryResponse
+import com.joincoded.bankapi.data.TransferRequest
 import com.joincoded.bankapi.data.UserCreationRequest
-import com.joincoded.bankapi.data.CardPaymentRequest
 import com.joincoded.bankapi.network.RetrofitHelper
 import com.joincoded.bankapi.network.RetrofitHelper.parseErrorBody
 import com.joincoded.bankapi.utils.SessionManager
 import com.joincoded.bankapi.utils.SharedPreferencesManager
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.math.BigDecimal
+import java.util.Calendar
 
 class BankViewModel(application: Application) : AndroidViewModel(application) {
     private val context = getApplication<Application>().applicationContext
@@ -59,8 +71,16 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
     var selectedPot by mutableStateOf<PotSummaryDto?>(null)
         private set
 
+    var potTransactions by mutableStateOf<List<TransactionHistoryResponse>?>(null)
+        private set
+
+    var accountTransactions by mutableStateOf<List<TransactionHistoryResponse>?>(null)
+        private set
+
     val totalBalance: BigDecimal
-        get() = allAccountSummaries.sumOf { it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO) }
+        get() = allAccountSummaries.sumOf {
+            it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO)
+        }
 
     var allAccountSummaries by mutableStateOf<List<AccountSummaryDto>>(emptyList())
         private set
@@ -108,7 +128,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun getGreeting(): String {
-        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         return when (hour) {
             in 5..11 -> "Good morning"
             in 12..16 -> "Good afternoon"
@@ -187,7 +207,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                     _isSuccessful.value = true
                     _isLoggedIn.value = true
                 } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "KYC submission failed. Please check your information!"
+                    _error.value = parseErrorBody(response.errorBody())
+                        ?: "KYC submission failed. Please check your information!"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -209,7 +230,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                 } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create main account"
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to create main account"
                 }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Unable to create main account"
@@ -219,57 +241,25 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createSavingsAccount() {
+    fun getKYC() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val response = apiBankService.createAccount(
-                    CreateAccountRequest(accountType = AccountType.SAVINGS)
-                )
+                val response = apiBankService.getKYC()
                 if (response.isSuccessful) {
-                    _isSuccessful.value = true
-                } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create savings account"
+                    val fullName = response.body()?.fullName ?: ""
+                    SharedPreferencesManager.saveUserName(context, fullName)} else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
                 }
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Unable to create savings account"
-            } finally {
                 _isLoading.value = false
+            } catch (e: Exception) {
+                _isLoading.value = false
+                _error.value = e.message ?: "Unable to fetch KYC info"
             }
         }
     }
 
-    fun selectAccountById(accountId: Long) {
-        val localMatch = allAccountSummaries.find { it.accountId == accountId }
-        if (localMatch != null) {
-            selectedAccount = localMatch
-        } else {
-            viewModelScope.launch {
-                _isLoading.value = true
-                _error.value = null
-                _isSuccessful.value = false
-                try {
-                    val response = apiBankService.getAccountSummary(accountId)
-                    if (response.isSuccessful) {
-                        selectedAccount = response.body()
-                        _isSuccessful.value = true
-                    } else {
-                        _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch account summary"
-                    }
-                    _isLoading.value = false
-                } catch (e: Exception) {
-                    _isLoading.value = false
-                    _isSuccessful.value = false
-                    _error.value = e.message ?: "Unable to fetch account summary"
-                }
-            }
-        }
-    }
-
-    fun selectPot(pot: PotSummaryDto) {
-        selectedPot = pot
-    }
 
     fun fetchAccountsAndSummary() {
         viewModelScope.launch {
@@ -293,28 +283,402 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getKYC() {
+    fun selectAccount(account: AccountSummaryDto) {
+        selectedAccount = account
+    }
+
+    fun selectPot(pot: PotSummaryDto) {
+        selectedPot = pot
+    }
+
+    fun createSavingsAccount() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val response = apiBankService.getKYC()
+                val response = apiBankService.createAccount(
+                    CreateAccountRequest(accountType = AccountType.SAVINGS)
+                )
                 if (response.isSuccessful) {
-                    val fullName = response.body()?.fullName ?: ""
-                    SharedPreferencesManager.saveUserName(context, fullName)
+                    _isSuccessful.value = true
                 } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to create savings account"
                 }
-                _isLoading.value = false
             } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create savings account"
+            } finally {
                 _isLoading.value = false
-                _error.value = e.message ?: "Unable to fetch KYC info"
             }
         }
     }
 
-    // ============== QUICKPAY FUNCTIONS - NEW ADDITIONS ==============
+    fun validatePotInputs(
+        name: String,
+        value: BigDecimal,
+        type: AllocationType,
+        currentPotId: Long?
+    ): String? {
+        if (name.isBlank()) return "Pot name cannot be empty"
+        if (value <= BigDecimal.ZERO) return "Allocation value must be greater than zero"
+        if (type == AllocationType.PERCENTAGE && value >= BigDecimal.ONE) return "Percentage cannot exceed 100%"
+        if (type == AllocationType.PERCENTAGE) {
+            val currentPotIdSet = currentPotId ?: -1
+            val totalPercentage = mainAccountSummary?.pots
+                ?.filter { it.allocationType == AllocationType.PERCENTAGE && it.potId != currentPotIdSet }
+                ?.sumOf { it.allocationValue } ?: BigDecimal.ZERO
+            if (totalPercentage + value > BigDecimal.ONE) {
+                return "Total percentage for all pots cannot be more than 100%"
+            }
+        }
+        if (mainAccountSummary?.pots?.any {
+                val sameName = it.name.equals(name, ignoreCase = true)
+                val samePot = currentPotId != null && it.potId == currentPotId
+                sameName && !samePot
+            } == true) return "Another pot with this name already exists"
+        return null
+    }
 
+
+
+    fun createPot(name: String, type: AllocationType, value: BigDecimal) {
+        val accountId = mainAccountSummary?.accountId
+
+        if (accountId == null) {
+            _error.value = "Invalid account ID"
+            return
+        }
+
+        val validationError = validatePotInputs(name, value, type, null)
+        if (validationError != null) {
+            _error.value = validationError
+            return
+        }
+
+        val request = PotRequest(name.trim(), type, value)
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                val response = apiBankService.createPot(accountId, request)
+
+                if (response.isSuccessful) {
+                    val updated = response.body()
+                    updated?.let {
+                        selectedAccount = apiBankService.getAccountSummary(accountId).body()
+                        _isSuccessful.value = true
+                    }
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create pot"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to create pot"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun editPot(updatedName: String, updatedType: AllocationType, updatedValue: BigDecimal) {
+        val accountId = mainAccountSummary?.accountId
+        val potId = selectedPot?.potId
+
+        if (accountId == null || potId == null) {
+            _error.value = "Invalid account or pot ID"
+            return
+        }
+
+        val validationError = validatePotInputs(updatedName, updatedValue, updatedType, selectedPot?.potId)
+        if (validationError != null) {
+            _error.value = validationError
+            return
+        }
+
+        val request = PotRequest(updatedName.trim(), updatedType, updatedValue)
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                val response = apiBankService.editPot(accountId, potId, request)
+                if (response.isSuccessful) {
+                    val updated = response.body()
+                    if (updated != null) {
+                        selectedPot = PotSummaryDto(
+                            potId = selectedPot!!.potId,
+                            name = updated.name,
+                            balance = selectedPot!!.balance,
+                            cardToken = selectedPot!!.cardToken,
+                            allocationType = updated.allocationType,
+                            allocationValue = updated.allocationValue
+                        )
+                        _isSuccessful.value = true
+                    }
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to update pot"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Unable to update pot"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    fun getPotTransactionHistory() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response =
+                    apiBankService.retrieveTransactionHistory(
+                        TransactionHistoryRequest(
+                            cardId = null,
+                            accountId = null,
+                            potId = selectedPot!!.potId
+                        )
+                    )
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    potTransactions = response.body()
+                    _isLoading.value = false
+                } else {
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to fetch pot transactions"
+                    _isLoading.value = false
+                }
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to fetch pot transactions"
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun getAccountTransactionHistory() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = apiBankService.retrieveTransactionHistory(
+                    TransactionHistoryRequest(
+                        cardId = null,
+                        accountId = selectedAccount!!.accountId,
+                        potId = null
+                    )
+                )
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    accountTransactions = response.body()
+                } else {
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to fetch account transactions"
+                }
+            } catch (e: Exception){
+                _error.value = e.message ?: "Failed to fetch account transactions"
+
+            }
+        }
+    }
+
+    private val _amount = MutableStateFlow("")
+    val amount: StateFlow<String> = _amount.asStateFlow()
+
+    private val _amountError = MutableStateFlow<String?>(null)
+    val amountError: StateFlow<String?> = _amountError.asStateFlow()
+
+
+    fun clearAmount() {
+        _amount.value = ""
+        _amountError.value = null
+    }
+
+    fun updateAmount(newAmount: String) {
+        _amount.value = newAmount
+        // Clear error when user starts typing
+        if (_amountError.value != null) {
+            _amountError.value = null
+        }
+    }
+
+    fun addToPot() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val amountValue = validateAmount(amount.value)
+                if (amountValue != null) {
+                    val request = PotDepositRequest(
+                        sourceAccountId = mainAccountSummary!!.accountId,
+                        destinationPotId = selectedPot!!.potId,
+                        amount = amountValue
+                    )
+
+                    val response = apiBankService.depositToPot(request)
+                    if (response.isSuccessful) {
+                        val updated = response.body()
+                        if (updated != null) {
+                            selectedPot = PotSummaryDto(
+                                potId = selectedPot!!.potId,
+                                name = selectedPot!!.name,
+                                balance = updated.newPotBalance,
+                                cardToken = selectedPot!!.cardToken,
+                                allocationType = selectedPot!!.allocationType,
+                                allocationValue = selectedPot!!.allocationValue
+                            )
+                            _isSuccessful.value = true
+                        } else {
+                            _error.value =
+                                parseErrorBody(response.errorBody()) ?: "Failed to add funds to pot"
+                        }
+                    } else {
+                        _error.value = "Invalid amount entered"
+                    }
+                } else {
+                    _error.value = "Unable to update pot"
+
+                }
+                } catch (e: Exception) {
+                    _error.value = "Network error: ${e.message}"
+                } finally {
+                    _isLoading.value = false
+                }
+            }
+    }
+
+    fun withdrawFromPot() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val amountValue = validateAmount(amount.value ?: "")
+                if (amountValue != null) {
+                    val request = PotTransferRequest(
+                        sourcePotId = selectedPot!!.potId,
+                        amount = amountValue
+                    )
+                    val response = apiBankService.withdrawalToAccount(request)
+
+                    if (response.isSuccessful) {
+                        val updated = response.body()
+                        if (updated != null) {
+                            selectedPot = PotSummaryDto(
+                                potId = selectedPot!!.potId,
+                                name = selectedPot!!.name,
+                                balance = updated.newPotBalance,
+                                cardToken = selectedPot!!.cardToken,
+                                allocationType = selectedPot!!.allocationType,
+                                allocationValue = selectedPot!!.allocationValue
+                            )
+                            _isSuccessful.value = true
+                        } else {
+                            _error.value =
+                                parseErrorBody(response.errorBody()) ?: "Failed to withdraw from pot"
+                        }
+                    } else {
+                        _error.value = "Invalid amount entered"
+                    }
+                } else {
+                    _error.value = "Unable to withdraw from pot"
+                }
+            } catch (e: Exception) {
+                _error.value = "Network error: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    var selectedDestinationPot by mutableStateOf<PotSummaryDto?>(null)
+        private set
+    val availableDestinationPots: List<PotSummaryDto>
+        get() = mainAccountSummary?.pots?.filter { it.potId != selectedPot?.potId } ?: emptyList()
+
+    fun setDestinationPot(pot: PotSummaryDto?) {
+        selectedDestinationPot = pot
+    }
+    fun clearDestinationPot() {
+        selectedDestinationPot = null
+    }
+
+    fun transferBetweenPots() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val amountValue = validateAmount(amount.value ?: "")
+                val destinationPot = selectedDestinationPot
+
+                when {
+                    amountValue == null -> {
+                        _error.value = "Invalid amount entered"
+                    }
+                    destinationPot == null -> {
+                        _error.value = "Please select a destination pot"
+                    }
+                    selectedPot == null -> {
+                        _error.value = "Source pot not selected"
+                    }
+                    else -> {
+                        val request = TransferRequest(
+                            sourceId = selectedPot!!.potId,
+                            destinationId = destinationPot.potId,
+                            amount = amountValue
+                        )
+                        val response = apiBankService.transfer(request)
+
+                        if (response.isSuccessful) {
+                            val updated = response.body()
+                            if (updated != null) {
+                                selectedPot = PotSummaryDto(
+                                    potId = selectedPot!!.potId,
+                                    name = selectedPot!!.name,
+                                    balance = updated.newBalanceAfter,
+                                    cardToken = selectedPot!!.cardToken,
+                                    allocationType = selectedPot!!.allocationType,
+                                    allocationValue = selectedPot!!.allocationValue
+                                )
+                                _isSuccessful.value = true
+                            } else {
+                                _error.value =
+                                    parseErrorBody(response.errorBody()) ?: "Failed to transfer between pots"
+                            }
+                        } else {
+                            _error.value = "Invalid amount entered"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _error.value = "Network error: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    private fun validateAmount(input: String): BigDecimal? {
+        return try {
+            val value = input.toBigDecimal()
+            when {
+                value <= BigDecimal.ZERO -> {
+                    _amountError.value = "Amount must be greater than 0"
+                    null
+                }
+                value > (mainAccountSummary!!.balance ?: BigDecimal.ZERO) -> {
+                    _amountError.value = "Insufficient balance"
+                    null
+                }
+                else -> {
+                    _amountError.value = null
+                    value
+                }
+            }
+        } catch (e: NumberFormatException) {
+            _amountError.value = "Please enter a valid amount"
+            null
+        }
+    }
     fun makeCardPayment(request: CardPaymentRequest) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -340,7 +704,6 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
     fun authenticateForPayment(username: String, password: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -361,13 +724,6 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
-    // NFC toggle for QuickPay
-    fun toggleNfc() {
-        isNFCEnabled.value = !isNFCEnabled.value
-    }
-
-    // Get cardholder name from existing SharedPreferences logic
     fun getCardholderName(): String {
         val fullName = SharedPreferencesManager.getSavedUserName(context)
         return if (fullName.isNotEmpty()) {
@@ -376,10 +732,36 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             "Card Holder"
         }
     }
-
-    // Reset states after payment (works with existing clearStates)
+    fun toggleNfc() {
+        isNFCEnabled.value = !isNFCEnabled.value
+    }
     fun resetPaymentFlow() {
         isNFCEnabled.value = false
-        clearStates() // Your existing function
+        clearStates()
+    }
+    fun transfer(request: TransferRequest) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                val response = apiBankService.transfer(request)
+
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    //  updates balances and ensures transaction history is current
+                    fetchAccountsAndSummary()
+                } else {
+                    // Backend handles all validation - just show the error
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Transfer failed"
+                }
+            } catch (e: Exception) {
+                _error.value = handleNetworkError(e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 }
+
+

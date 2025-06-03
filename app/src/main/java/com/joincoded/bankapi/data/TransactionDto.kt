@@ -1,5 +1,6 @@
 package com.joincoded.bankapi.data
 
+import android.R
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
@@ -41,12 +42,19 @@ data class TransactionHistoryRequest(
     val potId: Long? = null,
 )
 
+enum class TransactionType{
+    DEPOSIT,
+    WITHDRAW,
+    TRANSFER,
+    PURCHASE,
+}
+
 data class TransactionHistoryResponse(
     val id: Long,
     val amount: BigDecimal,
     val transactionType: String,
     val description: String?,
-    val createdAt: LocalDateTime
+    val createdAt: String
 )
 
 data class TransferRequest(

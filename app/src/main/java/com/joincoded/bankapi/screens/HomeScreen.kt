@@ -1,6 +1,6 @@
 package com.joincoded.bankapi.screens
 
-
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,14 +16,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.data.PotSummaryDto
+import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.utils.SharedPreferencesManager
 import com.joincoded.bankapi.viewmodel.BankViewModel
 import java.math.BigDecimal
@@ -51,7 +52,7 @@ fun HomeScreen(
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
             viewModel.getKYC()
-            viewModel.fetchAccountsAndSummary()
+            viewModel.fetchAccountsAndSummaries()
         }
     }
 
@@ -69,7 +70,7 @@ fun HomeScreen(
             } else {
                 UserGreetingSection(
                     greeting = viewModel.getGreeting(),
-                    userName = SharedPreferencesManager.getFirstName(context) ?: "User"
+                    userName = SharedPreferencesManager.getFirstName(context)
                 )
                 BalanceOverviewCard(
                     totalBalance = totalBalance,
@@ -99,7 +100,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
-                    itemsIndexed(pots) { index, pot ->
+                    itemsIndexed(pots.sortedBy { it.name.lowercase() }) { index, pot ->
                         PotCard(
                             pot = pot,
                             index = index,
@@ -116,15 +117,18 @@ fun HomeScreen(
 
 @Composable
 private fun UserGreetingSection(greeting: String, userName: String) {
-    Column {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Text(
             text = "$greeting,",
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = BokiTheme.typography.bodyLarge,
+            color = BokiTheme.colors.textSecondary
         )
         Text(
             text = userName,
-            style = MaterialTheme.typography.headlineSmall,
+            style = BokiTheme.typography.headlineLarge,
+            color = BokiTheme.colors.onBackground,
             fontWeight = FontWeight.Bold
         )
     }
@@ -138,33 +142,53 @@ private fun BalanceOverviewCard(
     onToggleVisibility: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 12.dp,
+                shape = BokiTheme.shapes.card,
+                ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.2f)
+            ),
+        shape = BokiTheme.shapes.card,
+        colors = CardDefaults.cardColors(
+            containerColor = BokiTheme.colors.cardBackground
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Total Balance", style = MaterialTheme.typography.bodyMedium)
-                IconButton(onClick = onToggleVisibility) {
+                Text(
+                    text = "Total Balance",
+                    style = BokiTheme.typography.labelLarge,
+                    color = BokiTheme.colors.textSecondary
+                )
+                IconButton(
+                    onClick = onToggleVisibility,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = BokiTheme.colors.secondary
+                    )
+                ) {
                     Icon(
                         imageVector = if (balanceVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         contentDescription = "Toggle Balance"
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(1.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (balanceVisible) "${totalBalance.setScale(3)} $currency" else "••••••",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Medium
+                text = if (balanceVisible) "$currency ${totalBalance.setScale(3)}" else "••••••",
+                style = BokiTheme.typography.displaySmall,
+                color = BokiTheme.colors.onBackground,
+                fontWeight = FontWeight.Bold
             )
         }
     }
 }
-
 
 @Composable
 private fun SectionHeader(title: String) {
@@ -175,7 +199,8 @@ private fun SectionHeader(title: String) {
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = BokiTheme.typography.headlineMedium,
+            color = BokiTheme.colors.onBackground,
             fontWeight = FontWeight.Bold
         )
     }
@@ -190,26 +215,37 @@ private fun AccountCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = BokiTheme.shapes.card,
+                ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.1f)
+            )
             .clickable { onClick(account) },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        shape = BokiTheme.shapes.card,
+        colors = CardDefaults.cardColors(
+            containerColor = BokiTheme.colors.cardBackground
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
             Text(
-                text = account.accountType.name,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                text = account.accountType.name.replace("_", " "),
+                style = BokiTheme.typography.labelLarge,
+                color = BokiTheme.colors.textSecondary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (balanceVisible) "${account.balance.setScale(3)} ${account.currency}" else "••••••",
-                style = MaterialTheme.typography.bodyLarge,
+                text = if (balanceVisible) "${account.currency} ${account.balance.setScale(3)}" else "••••••",
+                style = BokiTheme.typography.titleBold,
+                color = BokiTheme.colors.onBackground,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = account.accountNumber,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                style = BokiTheme.typography.labelMedium,
+                color = BokiTheme.colors.textSecondary
             )
         }
     }
@@ -225,27 +261,58 @@ fun PotCard(
 ) {
     Card(
         modifier = Modifier
-            .width(160.dp)
+            .width(180.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = BokiTheme.shapes.card,
+                ambientColor = BokiTheme.colors.success.copy(alpha = 0.1f)
+            )
             .clickable { onClick(pot) },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = BokiTheme.shapes.card,
+        colors = CardDefaults.cardColors(
+            containerColor = BokiTheme.colors.cardBackground
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(pot.name, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = if (balanceVisible) "${pot.balance.setScale(3)} $currency" else "••••••"
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(BokiTheme.potGradient(index))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = pot.name,
+                    style = BokiTheme.typography.titleRegular,
+                    color = BokiTheme.colors.onBackground,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (balanceVisible) "$currency ${pot.balance.setScale(3)}" else "••••••",
+                    style = BokiTheme.typography.bodyLarge,
+                    color = BokiTheme.colors.onBackground,
+                    fontWeight = FontWeight.Medium
+                )
 
-            Spacer(Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = when (pot.allocationType) {
-                    AllocationType.PERCENTAGE -> "Percentage: ${(pot.allocationValue * BigDecimal(100)).setScale(0)}%"
-                    AllocationType.FIXED -> "Fixed: ${pot.allocationValue.stripTrailingZeros().toPlainString()} $currency"
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                Text(
+                    text = when (pot.allocationType) {
+                        AllocationType.PERCENTAGE -> "Percentage: ${
+                            (pot.allocationValue * BigDecimal(
+                                100
+                            )).setScale(0)
+                        }%"
+
+                        AllocationType.FIXED -> "Fixed: ${
+                            pot.allocationValue.stripTrailingZeros().toPlainString()
+                        } $currency"
+                    },
+                    style = BokiTheme.typography.labelSmall,
+                    color = BokiTheme.colors.textSecondary
+                )
+            }
         }
     }
 }

@@ -40,7 +40,7 @@ fun AppNavigation(
     ) {
         // Auth navigation graph
         navigation(
-            startDestination = authStartDestination,
+            startDestination = Routes.manualLoginRoute,
             route = Routes.authGraph
         ) {
             // Biometric Login Screen (Primary for returning users)
@@ -118,12 +118,12 @@ fun AppNavigation(
             composable(Routes.homeRoute) {
                 HomeScreen(
                     viewModel = viewModel,
-                    onAccountClicked = { summary ->
-                        viewModel.selectAccountById(summary.accountId)
+                    onAccountClicked = { account ->
+                        viewModel.selectAccount(account)
                         navController.navigate(Routes.accountDetailsRoute)
                     },
-                    onPotClicked = { summary ->
-                        viewModel.selectPot(summary)
+                    onPotClicked = { pot ->
+                        viewModel.selectPot(pot)
                         navController.navigate(Routes.potDetailsRoute)
                     }
                 )
