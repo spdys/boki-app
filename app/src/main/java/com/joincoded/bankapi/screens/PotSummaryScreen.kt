@@ -11,8 +11,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.joincoded.bankapi.components.TransactionBottomSheet
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -28,6 +30,15 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
     }
     val currency by remember { derivedStateOf { viewModel.mainAccountSummary?.currency ?: "KWD" } }
 
+    LaunchedEffect(pot.potId) {
+        viewModel.getPotTransactionHistory()
+    }
+
+    val showBottomSheet = remember { mutableStateOf(true) }
+    val bottomSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { false } // disables swipe/tap dismiss, but keeps back press functional
+    )
 
     Box(
         modifier = Modifier
@@ -175,16 +186,18 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
 
                 // Add spacing for transaction overlay
                 Spacer(modifier = Modifier.height(120.dp))
+
             }
         }
-
-        // Floating Transaction List (overlay at bottom)
-//        if (transactions.isNotEmpty()) {
-//            SwipeUpTransactionList(
-//                transactions = transactions,
-//                currency = currency
-//            )
-//        }
+        if (showBottomSheet.value) {
+            TransactionBottomSheet(
+                viewModel = viewModel,
+                sheetState = bottomSheetState,
+                onDismiss = {
+                    showBottomSheet.value = false
+                }
+            )
+        }
     }
 }
 
@@ -192,7 +205,7 @@ fun PotSummaryScreen(viewModel: BankViewModel) {
 private fun PotDetailRow(
     label: String,
     value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: ImageVector
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -226,49 +239,3 @@ private fun PotDetailRow(
         )
     }
 }
-
-//@Preview(showBackground = true)
-//@Composable
-//fun PotSummaryScreenPreview() {
-//    val samplePot = PotSummaryDto(
-//        potId = 1L,
-//        name = "Emergency Fund",
-//        balance = BigDecimal("2500.000"),
-//        cardToken = "1234567890123456",
-//        allocationType = AllocationType.PERCENTAGE,
-//        allocationValue = BigDecimal("15.0")
-//    )
-//
-//    val sampleTransactions = listOf(
-//        TransactionHistoryResponse(
-//            id = 1L,
-//            amount = BigDecimal("150.000"),
-//            transactionType = "DEPOSIT",
-//            description = "Automatic Allocation",
-//            createdAt = LocalDateTime.now().minusHours(2)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 2L,
-//            amount = BigDecimal("50.000"),
-//            transactionType = "WITHDRAWAL",
-//            description = "Emergency Expense",
-//            createdAt = LocalDateTime.now().minusDays(1)
-//        ),
-//        TransactionHistoryResponse(
-//            id = 3L,
-//            amount = BigDecimal("200.000"),
-//            transactionType = "DEPOSIT",
-//            description = "Manual Transfer",
-//            createdAt = LocalDateTime.now().minusDays(3)
-//        )
-//    )
-//
-//    BankAPITheme {
-//        PotSummaryScreen(
-//            potSummary = samplePot,
-//            currency = "KWD",
-//            transactions = sampleTransactions,
-//            onNavigateBack = { /* Navigation back */ }
-//        )
-//    }
-//}

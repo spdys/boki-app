@@ -65,10 +65,12 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
 
 
     val totalBalance: BigDecimal
-        get() = allAccountSummaries.sumOf { it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO) }
+        get() = allAccountSummaries.sumOf {
+            it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO)
+        }
 
     //var userName by mutableStateOf<String?>(null)
-     //   private set
+    //   private set
 
     var allAccountSummaries by mutableStateOf<List<AccountSummaryDto>>(emptyList())
         private set
@@ -191,7 +193,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                     _isSuccessful.value = true
                     _isLoggedIn.value = true
                 } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "KYC submission failed. Please check your information!"
+                    _error.value = parseErrorBody(response.errorBody())
+                        ?: "KYC submission failed. Please check your information!"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -213,7 +216,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                 } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create main account"
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to create main account"
                 }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Unable to create main account"
@@ -234,7 +238,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                 } else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to create savings account"
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to create savings account"
                 }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Unable to create savings account"
@@ -259,7 +264,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                         selectedAccount = response.body()
                         _isSuccessful.value = true
                     } else {
-                        _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch account summary"
+                        _error.value = parseErrorBody(response.errorBody())
+                            ?: "Failed to fetch account summary"
                     }
                     _isLoading.value = false
                 } catch (e: Exception) {
@@ -273,6 +279,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectPot(pot: PotSummaryDto) {
         selectedPot = pot
+        potTransactions = null
     }
 
     fun fetchAccountsAndSummary() {
@@ -305,8 +312,10 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 val response = apiBankService.getKYC()
                 if (response.isSuccessful) {
                     val fullName = response.body()?.fullName ?: ""
-                    SharedPreferencesManager.saveUserName(context, fullName)} else {
-                    _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
+                    SharedPreferencesManager.saveUserName(context, fullName)
+                } else {
+                    _error.value =
+                        parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -321,16 +330,22 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             try {
                 val response =
-                    apiBankService.retrieveTransactionHistory(TransactionHistoryRequest(selectedPot!!.potId))
-                if (response.isSuccessful){
+                    apiBankService.retrieveTransactionHistory(
+                        TransactionHistoryRequest(
+                            cardId = null,
+                            accountId = null,
+                            potId = selectedPot!!.potId
+                        )
+                    )
+                if (response.isSuccessful) {
                     _isSuccessful.value = true
                     potTransactions = response.body()
-                } else{
+                } else {
                     _error.value =
                         parseErrorBody(response.errorBody()) ?: "Failed to fetch pot transactions"
                 }
                 _isLoading.value = false
-            } catch (e: Exception){
+            } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to fetch pot transactions"
             }
         }

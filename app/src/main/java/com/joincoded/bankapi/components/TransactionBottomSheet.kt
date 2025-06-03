@@ -32,17 +32,19 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionBottomSheet(
-    viewModel: BankViewModel = viewModel(),
-//    transactions: List<TransactionHistoryResponse>,
+    viewModel: BankViewModel,
     onDismiss: () -> Unit,
+    sheetState: SheetState,
     modifier: Modifier = Modifier
 ) {
-    var transactions =  viewModel
+
+    val transactions = viewModel.potTransactions ?: emptyList()
     val currency: String = "KWD"
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = sheetState,
         shape = BokiTheme.shapes.bottomSheet,
         containerColor = BokiTheme.colors.cardBackground,
         contentColor = BokiTheme.colors.onBackground,
@@ -101,85 +103,36 @@ fun TransactionBottomSheet(
             }
 
             // Transaction List
-            if (transactions.isNotEmpty()) {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(transactions) { transaction ->
-                        TransactionCard(
-                            transaction = transaction,
-                            currency = currency
-                        )
+            when {
+                transactions.isNotEmpty() -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(transactions) { transaction ->
+                            TransactionCard(
+                                transaction = transaction,
+                                currency = currency
+                            )
+                        }
                     }
                 }
-            } else {
-                // Empty state
-                EmptyTransactionState()
+
+                else -> {
+                    // Empty state
+                    EmptyTransactionState()
+                }
             }
         }
     }
 }
 
-@Composable
-fun TransactionFloatingButton(
-    transactions: List<TransactionHistoryResponse>,
-    modifier: Modifier = Modifier
-) {
-    val  currency: String = "KWD"
-
-    var showBottomSheet by remember { mutableStateOf(false) }
-
-    // Floating Action Button to trigger bottom sheet
-    if (transactions.isNotEmpty()) {
-        Card(
-            modifier = modifier
-                .padding(16.dp)
-                .shadow(
-                    elevation = 8.dp,
-                    shape = BokiTheme.shapes.medium,
-                    ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.3f)
-                ),
-            shape = BokiTheme.shapes.medium,
-            colors = CardDefaults.cardColors(
-                containerColor = BokiTheme.colors.secondary
-            ),
-            onClick = { showBottomSheet = true }
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ReceiptLong,
-                    contentDescription = "View Transactions",
-                    tint = BokiTheme.colors.onPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "View Transactions (${transactions.size})",
-                    style = BokiTheme.typography.labelLarge,
-                    color = BokiTheme.colors.onPrimary
-                )
-            }
-        }
-
-        // Bottom Sheet
-        if (showBottomSheet) {
-            TransactionBottomSheet(
-                transactions = transactions,
-                onDismiss = { showBottomSheet = false }
-            )
-        }
-    }
-}
 
 @Composable
 fun TransactionCard(
     transaction: TransactionHistoryResponse,
+    currency: String,
     modifier: Modifier = Modifier
 ) {
-    val currency: String = "KWD"
     val transactionIcon = getTransactionIcon(transaction.transactionType)
     val transactionColor = getTransactionColor(transaction.transactionType)
     val amountPrefix = getAmountPrefix(transaction.transactionType)
@@ -345,6 +298,8 @@ private fun getAmountPrefix(transactionType: String): String {
 @Preview(showBackground = true)
 @Composable
 fun TransactionFloatingButtonPreview() {
+    // Note: This preview shows sample data, but in real usage the button
+    // only appears when viewModel.potTransactions has data
     val sampleTransactions = listOf(
         TransactionHistoryResponse(
             id = 1L,
@@ -359,27 +314,6 @@ fun TransactionFloatingButtonPreview() {
             transactionType = "WITHDRAWAL",
             description = "Coffee Shop",
             createdAt = LocalDateTime.now().minusHours(5)
-        ),
-        TransactionHistoryResponse(
-            id = 3L,
-            amount = BigDecimal("12.750"),
-            transactionType = "DEBIT",
-            description = "Grocery Store",
-            createdAt = LocalDateTime.now().minusDays(1)
-        ),
-        TransactionHistoryResponse(
-            id = 4L,
-            amount = BigDecimal("100.000"),
-            transactionType = "TRANSFER",
-            description = "Transfer to Savings",
-            createdAt = LocalDateTime.now().minusDays(2)
-        ),
-        TransactionHistoryResponse(
-            id = 5L,
-            amount = BigDecimal("75.250"),
-            transactionType = "CREDIT",
-            description = "Refund",
-            createdAt = LocalDateTime.now().minusDays(3)
         )
     )
 
@@ -390,9 +324,38 @@ fun TransactionFloatingButtonPreview() {
                 .background(BokiTheme.gradient),
             contentAlignment = Alignment.BottomEnd
         ) {
-            TransactionFloatingButton(
-                transactions = sampleTransactions,
-            )
+            // For preview purposes, simulate the button appearance
+            Card(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = BokiTheme.shapes.medium,
+                        ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.3f)
+                    ),
+                shape = BokiTheme.shapes.medium,
+                colors = CardDefaults.cardColors(
+                    containerColor = BokiTheme.colors.secondary
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ReceiptLong,
+                        contentDescription = "View Transactions",
+                        tint = BokiTheme.colors.onPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "View Transactions (${sampleTransactions.size})",
+                        style = BokiTheme.typography.labelLarge,
+                        color = BokiTheme.colors.onPrimary
+                    )
+                }
+            }
         }
     }
 }
