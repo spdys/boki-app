@@ -4,7 +4,7 @@ package com.joincoded.bankapi.screens
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -23,51 +23,33 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.joincoded.bankapi.components.BottomNavBar
 import com.joincoded.bankapi.data.AccountType
-import com.joincoded.bankapi.ui.theme.BokiColors
+import com.joincoded.bankapi.data.CardPaymentRequest
 import com.joincoded.bankapi.ui.theme.BokiTheme
-import com.joincoded.bankapi.utils.SharedPreferencesManager
 import com.joincoded.bankapi.viewmodel.BankViewModel
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import java.math.BigDecimal
+import java.util.concurrent.Executor
 
-// Card data class for Quick Pay
-data class QuickPayCard(
+// Banking card data class
+data class BankingCard(
     val id: String,
-    val name: String,
-    val type: QuickPayCardType,
-    val balance: BigDecimal,
-    val currency: String,
-    val accountNumber: String,
-    val gradient: List<Color>,
-    val icon: ImageVector
+    val cardName: String,
+    val maskedCardNumber: String,
+    val cardType: String,
+    val gradientIndex: Int,
+    val icon: ImageVector,
+    val isVirtual: Boolean = false
 )
-
-enum class QuickPayCardType {
-    ACCOUNT, POT
-}
-
-// Fixed sophisticated pot colors (6 options) - can be moved to your color file later
-object SophisticatedCardColors {
-    val cardColors = listOf(
-        // Slate - Professional gray-blue
-        listOf(Color(0xFF475569), Color(0xFF334155)),
-        // Stone - Warm neutral
-        listOf(Color(0xFF57534E), Color(0xFF44403C)),
-        // Zinc - Cool neutral
-        listOf(Color(0xFF52525B), Color(0xFF3F3F46)),
-        // Neutral - Balanced gray
-        listOf(Color(0xFF525252), Color(0xFF404040)),
-        // Warm Gray - Subtle warmth
-        listOf(Color(0xFF6B5B73), Color(0xFF544C57)),
-        // Cool Blue-Gray - Sophisticated
-        listOf(Color(0xFF64748B), Color(0xFF475569))
-    )
-}
 
 @Composable
 fun QuickPayScreen(
@@ -75,22 +57,60 @@ fun QuickPayScreen(
     navController: NavHostController
 ) {
     val context = LocalContext.current
+    val activity = context as? FragmentActivity
+    val executor: Executor = ContextCompat.getMainExecutor(context)
+    val haptic = LocalHapticFeedback.current
 
-    // Get user name for greeting
-    val savedUserName = SharedPreferencesManager.getSavedUserName(context)
-    val displayName = if (savedUserName.isNotEmpty()) {
-        SharedPreferencesManager.getFirstName(context)
-    } else {
-        "User"
+    // State management
+    var selectedCardIndex by remember { mutableIntStateOf(-1) }
+    var isCardSelected by remember { mutableStateOf(false) }
+    val isNfcActive by bankViewModel.nfcEnabled.collectAsState()
+    val isPaymentProcessing by bankViewModel.isLoading.collectAsState()
+    val isPaymentSuccessful by bankViewModel.isSuccessful.collectAsState()
+    var showSuccessOverlay by remember { mutableStateOf(false) }
+
+    // Handle error state
+    val errorState by bankViewModel.error.collectAsState()
+    val currentError = errorState
+
+    // Get cardholder name
+    val cardholderName = bankViewModel.getCardholderName()
+
+    // Create banking cards
+    val bankingCards = remember(bankViewModel.allAccountSummaries, bankViewModel.mainAccountSummary?.pots) {
+        createBankingCards(bankViewModel, cardholderName)
     }
 
-    // Create payment cards from accounts and pots
-    val paymentCards = remember(bankViewModel.allAccountSummaries, bankViewModel.mainAccountSummary?.pots) {
-        createQuickPayCards(bankViewModel)
+    // Biometric setup
+    val biometricPrompt = activity?.let {
+        BiometricPrompt(it, executor, object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                if (selectedCardIndex >= 0) {
+                    val selectedCard = bankingCards[selectedCardIndex]
+                    val request = CardPaymentRequest(
+                        cardNumberOrToken = selectedCard.id,
+                        amount = BigDecimal("25.000"), // Demo amount from NFC/Postman
+                        destinationId = 1L // Merchant ID
+                    )
+                    bankViewModel.makeCardPayment(request)
+                }
+            }
+
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                // Handled by ViewModel
+            }
+
+            override fun onAuthenticationFailed() {
+                // Handled by ViewModel
+            }
+        })
     }
 
-    var selectedCardIndex by remember { mutableStateOf(0) }
-    var isNfcActive by remember { mutableStateOf(false) }
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        .setTitle("Authenticate Payment")
+        .setSubtitle("Use your biometric credential to authorize this payment")
+        .setNegativeButtonText("Cancel")
+        .build()
 
     Box(
         modifier = Modifier
@@ -100,36 +120,64 @@ fun QuickPayScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Clean Header Section
+            // Header
             QuickPayHeader(
-                userName = displayName,
-                onBackClick = { navController.popBackStack() },
-                onNfcToggle = { isNfcActive = !isNfcActive },
-                isNfcActive = isNfcActive
+                onBackClick = {
+                    if (isCardSelected) {
+                        // Return to card stack
+                        isCardSelected = false
+                        selectedCardIndex = -1
+                        bankViewModel.resetPaymentFlow()
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
+                onNfcToggle = {
+                    if (isCardSelected) {
+                        bankViewModel.toggleNfc()
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
+                },
+                isNfcActive = isNfcActive,
+                showBackArrow = isCardSelected
             )
 
-            // Card Stack Section
-            if (paymentCards.isNotEmpty()) {
-                CardStackSection(
-                    cards = paymentCards,
-                    selectedIndex = selectedCardIndex,
-                    onCardSelected = { selectedCardIndex = it },
-                    modifier = Modifier.weight(1f)
-                )
+            if (bankingCards.isNotEmpty()) {
+                // Card stack or selected card
+                if (isCardSelected && selectedCardIndex >= 0) {
+                    // Show selected card centered
+                    SelectedCardView(
+                        card = bankingCards[selectedCardIndex],
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    // Show card stack
+                    CardStackView(
+                        cards = bankingCards,
+                        onCardSelected = { index ->
+                            selectedCardIndex = index
+                            isCardSelected = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
 
-                // Payment Actions
-                PaymentActionsSection(
-                    selectedCard = paymentCards[selectedCardIndex],
-                    isNfcActive = isNfcActive,
-                    onPayClick = { card ->
-                        handleQuickPayment(card, navController)
-                    }
-                )
+                // Payment action section (only when card is selected)
+                if (isCardSelected && selectedCardIndex >= 0) {
+                    PaymentActionSection(
+                        isNfcActive = isNfcActive,
+                        isProcessing = isPaymentProcessing,
+                        selectedCard = bankingCards[selectedCardIndex],
+                        onPayClick = {
+                            if (isNfcActive && !isPaymentProcessing) {
+                                biometricPrompt?.authenticate(promptInfo)
+                            }
+                        }
+                    )
+                }
             } else {
-                // Empty state
-                EmptyCardsState(
-                    modifier = Modifier.weight(1f)
-                )
+                EmptyCardsState(modifier = Modifier.weight(1f))
             }
         }
 
@@ -138,116 +186,136 @@ fun QuickPayScreen(
             navController = navController,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+
+        // Monitor payment success
+        LaunchedEffect(isPaymentSuccessful) {
+            if (isPaymentSuccessful) {
+                showSuccessOverlay = true
+                bankViewModel.clearStates()
+            }
+        }
+
+        // Success/Error overlays
+        if (showSuccessOverlay) {
+            PaymentSuccessOverlay(
+                onDismiss = {
+                    showSuccessOverlay = false
+                    isCardSelected = false
+                    selectedCardIndex = -1
+                    bankViewModel.resetPaymentFlow()
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        currentError?.let { errorMessage ->
+            PaymentErrorOverlay(
+                error = errorMessage,
+                onDismiss = { bankViewModel.clearStates() }
+            )
+        }
     }
 }
 
 @Composable
 private fun QuickPayHeader(
-    userName: String,
     onBackClick: () -> Unit,
     onNfcToggle: () -> Unit,
-    isNfcActive: Boolean
+    isNfcActive: Boolean,
+    showBackArrow: Boolean
 ) {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        BokiColors.BackgroundDark.copy(alpha = 0.9f),
-                        Color.Transparent
-                    )
-                )
-            )
-            .padding(20.dp)
+            .padding(20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .size(40.dp)
+                .background(Color.White.copy(alpha = 0.15f), CircleShape)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                IconButton(
-                    onClick = onBackClick,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(BokiColors.CardTransparentDark, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = BokiColors.TextDark
-                    )
-                }
+            Icon(
+                imageVector = if (showBackArrow) Icons.Default.ArrowBack else Icons.Default.Close,
+                contentDescription = if (showBackArrow) "Back" else "Close",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
 
-                Column {
-                    Text(
-                        text = "Quick Pay",
-                        color = BokiColors.TextDark,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Select card to pay, $userName",
-                        color = BokiColors.TextDark.copy(alpha = 0.7f),
-                        fontSize = 14.sp
-                    )
-                }
-            }
+        Text(
+            text = "QuickPay",
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold
+        )
 
-            // NFC Toggle
-            IconButton(
-                onClick = onNfcToggle,
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        if (isNfcActive) BokiColors.AccentRed.copy(alpha = 0.2f) else BokiColors.CardTransparentDark,
-                        CircleShape
-                    )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Nfc,
-                    contentDescription = "NFC",
-                    tint = if (isNfcActive) BokiColors.AccentRed else BokiColors.TextDark.copy(alpha = 0.6f),
-                    modifier = Modifier.size(24.dp)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    if (isNfcActive) Color.White.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.1f),
+                    CircleShape
                 )
-            }
+                .pointerInput(Unit) {
+                    detectTapGestures { onNfcToggle() }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Contactless,
+                contentDescription = "NFC",
+                tint = if (isNfcActive) Color.White else Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
 @Composable
-private fun CardStackSection(
-    cards: List<QuickPayCard>,
-    selectedIndex: Int,
+private fun CardStackView(
+    cards: List<BankingCard>,
     onCardSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier.padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy((-160).dp),
-        contentPadding = PaddingValues(vertical = 20.dp)
+        modifier = modifier.padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy((-80).dp),
+        contentPadding = PaddingValues(vertical = 40.dp)
     ) {
         itemsIndexed(cards) { index, card ->
-            val isSelected = index == selectedIndex
             val scale by animateFloatAsState(
-                targetValue = if (isSelected) 1f else 0.95f,
+                targetValue = when (index) {
+                    0 -> 1f
+                    1 -> 0.95f
+                    2 -> 0.9f
+                    else -> 0.85f
+                },
                 animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                 label = "cardScale"
             )
 
-            QuickPayCardItem(
+            val alpha by animateFloatAsState(
+                targetValue = when (index) {
+                    0 -> 1f
+                    1 -> 0.9f
+                    2 -> 0.8f
+                    else -> 0.7f
+                },
+                animationSpec = tween(300),
+                label = "cardAlpha"
+            )
+
+            BankCard(
                 card = card,
-                isSelected = isSelected,
                 onClick = { onCardSelected(index) },
                 modifier = Modifier
                     .scale(scale)
                     .graphicsLayer {
-                        translationY = if (isSelected) 0f else (index - selectedIndex) * 12f
-                        alpha = if (index <= selectedIndex + 2) 1f else 0.7f
+                        this.alpha = alpha
+                        translationY = index * 20f
                     }
             )
         }
@@ -255,56 +323,54 @@ private fun CardStackSection(
 }
 
 @Composable
-private fun QuickPayCardItem(
-    card: QuickPayCard,
-    isSelected: Boolean,
+private fun SelectedCardView(
+    card: BankingCard,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        BankCard(
+            card = card,
+            onClick = { },
+            modifier = Modifier.padding(horizontal = 24.dp)
+        )
+    }
+}
+
+@Composable
+private fun BankCard(
+    card: BankingCard,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-
-    val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "pressScale"
-    )
+    val cardGradient = BokiTheme.quickPayCardGradient(card.gradientIndex)
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .height(200.dp)
-            .scale(pressScale)
             .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { isPressed = true },
-                    onDragEnd = {
-                        isPressed = false
-                        onClick()
-                    }
-                ) { _, _ -> }
+                detectTapGestures { onClick() }
             },
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 12.dp else 6.dp
-        ),
+        shape = BokiTheme.shapes.card,
+        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.horizontalGradient(card.gradient),
-                    shape = RoundedCornerShape(20.dp)
-                )
+                .background(cardGradient, BokiTheme.shapes.card)
         ) {
-            // Subtle glassmorphism
+            // Subtle texture overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.08f),
+                                Color.White.copy(alpha = 0.1f),
                                 Color.Transparent
                             ),
                             radius = 400f
@@ -312,101 +378,107 @@ private fun QuickPayCardItem(
                     )
             )
 
-            Column(
+            // Card header with chip and contactless
+            Row(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .padding(24.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Card Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = card.icon,
-                            contentDescription = card.name,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = card.type.name,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    // Contactless Symbol
-                    Icon(
-                        imageVector = Icons.Default.Contactless,
-                        contentDescription = "Contactless",
-                        tint = Color.White.copy(alpha = 0.8f),
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                // Card Content
-                Column {
-                    Text(
-                        text = card.name,
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "${card.balance.setScale(3)} ${card.currency}",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = card.accountNumber,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal
-                    )
-                }
-            }
-
-            // Selection Indicator
-            if (isSelected) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp)
-                        .size(10.dp)
-                        .background(Color.White, CircleShape)
+                        .size(32.dp)
+                        .background(
+                            Color.White.copy(alpha = 0.9f),
+                            RoundedCornerShape(4.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = card.icon,
+                        contentDescription = "Chip",
+                        tint = Color.Black.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                // Contactless symbol
+                Icon(
+                    imageVector = Icons.Default.Contactless,
+                    contentDescription = "Contactless",
+                    tint = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.size(28.dp)
                 )
             }
+
+            // Virtual card indicator
+            if (card.isVirtual) {
+                Box(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .background(
+                            Color.White.copy(alpha = 0.25f),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "VIRTUAL",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+
+            // Card name positioned in lower left for readability
+            Text(
+                text = card.cardName,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 24.dp, bottom = 50.dp)
+            )
+
+            // Card number positioned bottom right
+            Text(
+                text = card.maskedCardNumber,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = 2.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 24.dp, bottom = 24.dp)
+            )
         }
     }
 }
 
 @Composable
-private fun PaymentActionsSection(
-    selectedCard: QuickPayCard,
+private fun PaymentActionSection(
     isNfcActive: Boolean,
-    onPayClick: (QuickPayCard) -> Unit
+    isProcessing: Boolean,
+    selectedCard: BankingCard,
+    onPayClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                BokiColors.CardTransparentDark,
-                RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                Color.Black.copy(alpha = 0.4f),
+                RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
             )
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(28.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // NFC Status
+        // Ready indicator
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -414,67 +486,74 @@ private fun PaymentActionsSection(
         ) {
             Box(
                 modifier = Modifier
-                    .size(12.dp)
+                    .size(6.dp)
                     .background(
-                        if (isNfcActive) BokiColors.Success else BokiColors.SoftGray,
+                        if (isNfcActive) Color.Green else Color.Gray,
                         CircleShape
                     )
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = if (isNfcActive) "NFC Ready" else "NFC Disabled",
-                color = BokiColors.TextDark.copy(alpha = 0.8f),
+                text = if (isNfcActive) "Ready to Pay" else "Enable Contactless",
+                color = Color.White.copy(alpha = 0.9f),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
         }
 
-        // Pay Button
+        // Pay button
         Button(
-            onClick = { onPayClick(selectedCard) },
+            onClick = onPayClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(50.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = BokiColors.AccentRed,
-                disabledContainerColor = BokiColors.SoftGray
+                containerColor = if (isNfcActive) Color.White else Color.Gray.copy(alpha = 0.3f),
+                disabledContainerColor = Color.Gray.copy(alpha = 0.3f)
             ),
-            shape = RoundedCornerShape(16.dp),
-            enabled = isNfcActive
+            shape = RoundedCornerShape(25.dp),
+            enabled = isNfcActive && !isProcessing
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Contactless,
-                    contentDescription = "Pay",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+            if (isProcessing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.Black,
+                    strokeWidth = 2.dp
                 )
-                Text(
-                    text = if (isNfcActive) "Tap to Pay" else "Enable NFC to Pay",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = "Touch ID",
+                        tint = Color.Black,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Pay with Touch ID",
+                        color = Color.Black,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
-        // Selected Card Info
+        // Selected card info
         Text(
-            text = "Selected: ${selectedCard.name} • ${selectedCard.balance.setScale(3)} ${selectedCard.currency}",
-            color = BokiColors.TextDark.copy(alpha = 0.6f),
+            text = "${selectedCard.cardName} • ${selectedCard.maskedCardNumber.takeLast(4)}",
+            color = Color.White.copy(alpha = 0.5f),
             fontSize = 12.sp,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
 }
 
 @Composable
-private fun EmptyCardsState(
-    modifier: Modifier = Modifier
-) {
+private fun EmptyCardsState(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -483,92 +562,145 @@ private fun EmptyCardsState(
         Icon(
             imageVector = Icons.Default.CreditCard,
             contentDescription = "No cards",
-            tint = BokiColors.TextDark.copy(alpha = 0.3f),
-            modifier = Modifier.size(64.dp)
+            tint = Color.White.copy(alpha = 0.3f),
+            modifier = Modifier.size(48.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No payment cards available",
-            color = BokiColors.TextDark.copy(alpha = 0.6f),
+            text = "No Payment Methods",
+            color = Color.White.copy(alpha = 0.7f),
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = "Add an account or pot to get started",
-            color = BokiColors.TextDark.copy(alpha = 0.4f),
-            fontSize = 14.sp
         )
     }
 }
 
-// Helper function to create payment cards with fixed sophisticated colors
-private fun createQuickPayCards(bankViewModel: BankViewModel): List<QuickPayCard> {
-    val cards = mutableListOf<QuickPayCard>()
+@Composable
+private fun PaymentSuccessOverlay(onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.9f))
+            .pointerInput(Unit) {
+                detectTapGestures { onDismiss() }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "Success",
+                tint = Color.Green,
+                modifier = Modifier.size(80.dp)
+            )
+            Text(
+                text = "Payment Complete",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Tap to continue",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 14.sp
+            )
+        }
+    }
+}
 
-    // Add account cards with sophisticated colors
+@Composable
+private fun PaymentErrorOverlay(error: String, onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.9f))
+            .pointerInput(Unit) {
+                detectTapGestures { onDismiss() }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = "Payment Declined",
+                tint = Color.Red,
+                modifier = Modifier.size(80.dp)
+            )
+            Text(
+                text = "Payment Declined",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = error,
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 14.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+        }
+    }
+}
+
+// Helper functions
+private fun createBankingCards(
+    bankViewModel: BankViewModel,
+    cardholderName: String
+): List<BankingCard> {
+    val cards = mutableListOf<BankingCard>()
+    var gradientIndex = 0
+
+    // Add account cards
     bankViewModel.allAccountSummaries.forEach { account ->
         cards.add(
-            QuickPayCard(
+            BankingCard(
                 id = account.accountNumber,
-                name = "${account.accountType.name} Account",
-                type = QuickPayCardType.ACCOUNT,
-                balance = account.balance,
-                currency = account.currency,
-                accountNumber = account.accountNumber,
-                gradient = if (account.accountType == AccountType.MAIN) {
-                    SophisticatedCardColors.cardColors[0]
-                } else {
-                    SophisticatedCardColors.cardColors[1]
-                },
-                icon = if (account.accountType == AccountType.MAIN) {
-                    Icons.Default.AccountBalance
-                } else {
-                    Icons.Default.Savings
-                }
+                cardName = account.accountType.name,
+                maskedCardNumber = maskCardNumber(account.cardNumber ?: account.accountNumber),
+                cardType = account.accountType.name,
+                gradientIndex = gradientIndex % 6,
+                icon = getAccountIcon(account.accountType),
+                isVirtual = false
             )
         )
+        gradientIndex++
     }
 
-    // Add pot cards with fixed sophisticated colors
-    bankViewModel.mainAccountSummary?.pots?.forEachIndexed { index, pot ->
+    // Add pot virtual cards
+    bankViewModel.mainAccountSummary?.pots?.forEach { pot ->
         cards.add(
-            QuickPayCard(
-                id = pot.name,
-                name = pot.name,
-                type = QuickPayCardType.POT,
-                balance = pot.balance,
-                currency = bankViewModel.mainAccountSummary?.currency ?: "KWD",
-                accountNumber = "Pot • ${pot.name}",
-                gradient = SophisticatedCardColors.cardColors[(index + 2) % SophisticatedCardColors.cardColors.size],
-                icon = getQuickPayPotIcon(pot.name)
+            BankingCard(
+                id = pot.cardToken ?: "POT_${pot.potId}",
+                cardName = pot.name.uppercase(),
+                maskedCardNumber = maskCardNumber(pot.cardToken ?: "Virtual Card"),
+                cardType = pot.name.uppercase(),
+                gradientIndex = gradientIndex % 6,
+                icon = Icons.Default.AccountBalanceWallet,
+                isVirtual = true
             )
         )
+        gradientIndex++
     }
 
     return cards
 }
 
-// Helper function for pot icons (unique function name to avoid conflicts)
-private fun getQuickPayPotIcon(potName: String): ImageVector {
-    return when (potName.lowercase()) {
-        "fuel", "car", "transport" -> Icons.Default.DirectionsCar
-        "food", "dining", "restaurant", "fast food" -> Icons.Default.Restaurant
-        "groceries", "shopping" -> Icons.Default.ShoppingCart
-        "coffee", "cafe" -> Icons.Default.LocalCafe
-        "housing", "home", "rent" -> Icons.Default.Home
-        "bills", "utilities" -> Icons.Default.Receipt
-        "entertainment", "fun" -> Icons.Default.Movie
-        "health", "medical" -> Icons.Default.LocalHospital
-        "education", "learning" -> Icons.Default.School
-        "travel", "vacation" -> Icons.Default.Flight
-        "savings", "emergency" -> Icons.Default.Savings
-        "subscriptions" -> Icons.Default.Subscriptions
-        else -> Icons.Default.AccountBalanceWallet
-    }
+private fun maskCardNumber(cardNumber: String): String {
+    if (cardNumber.length < 4) return "•••• •••• •••• ••••"
+    val lastFour = cardNumber.takeLast(4)
+    return "•••• •••• •••• $lastFour"
 }
 
-// Handle payment action
-private fun handleQuickPayment(card: QuickPayCard, navController: NavHostController) {
-    // Navigate to payment confirmation or success screen
-    navController.navigate("payment_success/${card.id}")
+private fun getAccountIcon(accountType: AccountType): ImageVector {
+    return when (accountType) {
+        AccountType.MAIN -> Icons.Default.CreditCard
+        AccountType.SAVINGS -> Icons.Default.Savings
+    }
 }

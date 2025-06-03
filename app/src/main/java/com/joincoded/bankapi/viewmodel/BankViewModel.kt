@@ -13,6 +13,7 @@ import com.joincoded.bankapi.data.CreateAccountRequest
 import com.joincoded.bankapi.data.KYCRequest
 import com.joincoded.bankapi.data.PotSummaryDto
 import com.joincoded.bankapi.data.UserCreationRequest
+import com.joincoded.bankapi.data.CardPaymentRequest
 import com.joincoded.bankapi.network.RetrofitHelper
 import com.joincoded.bankapi.network.RetrofitHelper.parseErrorBody
 import com.joincoded.bankapi.utils.SessionManager
@@ -58,15 +59,15 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
     var selectedPot by mutableStateOf<PotSummaryDto?>(null)
         private set
 
-
     val totalBalance: BigDecimal
         get() = allAccountSummaries.sumOf { it.balance + (it.pots?.sumOf { pot -> pot.balance } ?: BigDecimal.ZERO) }
 
-    //var userName by mutableStateOf<String?>(null)
-     //   private set
-
     var allAccountSummaries by mutableStateOf<List<AccountSummaryDto>>(emptyList())
         private set
+
+    // QuickPay NFC state
+    private val isNFCEnabled = MutableStateFlow(false)
+    val nfcEnabled = isNFCEnabled.asStateFlow()
 
     init {
         // Check if user is already logged in when ViewModel is created
@@ -153,7 +154,7 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     _isSuccessful.value = true
                 } else {
-                    _error.value = "Registration failed"
+                    _error.value = "Registration failed" // declare error type
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -300,7 +301,8 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 val response = apiBankService.getKYC()
                 if (response.isSuccessful) {
                     val fullName = response.body()?.fullName ?: ""
-                    SharedPreferencesManager.saveUserName(context, fullName)} else {
+                    SharedPreferencesManager.saveUserName(context, fullName)
+                } else {
                     _error.value = parseErrorBody(response.errorBody()) ?: "Failed to fetch KYC info"
                 }
                 _isLoading.value = false
@@ -309,5 +311,75 @@ class BankViewModel(application: Application) : AndroidViewModel(application) {
                 _error.value = e.message ?: "Unable to fetch KYC info"
             }
         }
+    }
+
+    // ============== QUICKPAY FUNCTIONS - NEW ADDITIONS ==============
+
+    fun makeCardPayment(request: CardPaymentRequest) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _isSuccessful.value = false
+            try {
+                // AuthInterceptor automatically adds authorization
+                val response = apiBankService.purchaseFromCard(request)
+
+                if (response.isSuccessful) {
+                    _isSuccessful.value = true
+                    // CRITICAL: Refresh account data after successful payment
+                    // This updates balances and ensures transaction history is current
+                    fetchAccountsAndSummary()
+                } else {
+                    // Backend handles all validation - just show the error
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Payment declined"
+                }
+            } catch (e: Exception) {
+                _error.value = handleNetworkError(e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun authenticateForPayment(username: String, password: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val response = apiAuthService.getToken(AuthenticationRequest(username, password))
+
+                if (response.isSuccessful && response.body()?.token != null) {
+                    _isLoading.value = false
+                    onSuccess()
+                } else {
+                    _error.value = parseErrorBody(response.errorBody()) ?: "Wrong credentials"
+                    _isLoading.value = false
+                }
+            } catch (e: Exception) {
+                _error.value = handleNetworkError(e)
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // NFC toggle for QuickPay
+    fun toggleNfc() {
+        isNFCEnabled.value = !isNFCEnabled.value
+    }
+
+    // Get cardholder name from existing SharedPreferences logic
+    fun getCardholderName(): String {
+        val fullName = SharedPreferencesManager.getSavedUserName(context)
+        return if (fullName.isNotEmpty()) {
+            fullName.trim()
+        } else {
+            "Card Holder"
+        }
+    }
+
+    // Reset states after payment (works with existing clearStates)
+    fun resetPaymentFlow() {
+        isNFCEnabled.value = false
+        clearStates() // Your existing function
     }
 }
