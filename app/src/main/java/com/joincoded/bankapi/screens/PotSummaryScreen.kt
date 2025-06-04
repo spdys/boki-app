@@ -214,7 +214,7 @@ fun PotSummaryScreen(
                 }
 
                 // Add spacing for transaction overlay
-                Spacer(modifier = Modifier.height(120.dp))
+//                Spacer(modifier = Modifier.height(120.dp))
 
                 PotActionsCard(
                     onAddClick = { showAddDialog = true },

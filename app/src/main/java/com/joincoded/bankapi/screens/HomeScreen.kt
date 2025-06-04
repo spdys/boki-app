@@ -47,7 +47,6 @@ fun HomeScreen(
     val mainCurrency by remember { derivedStateOf { viewModel.mainAccountSummary?.currency ?: "KWD" } }
     var balanceVisible by remember { mutableStateOf(true) }
 
-
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
             viewModel.getKYC()
@@ -55,58 +54,91 @@ fun HomeScreen(
         }
     }
 
-    LazyColumn(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .background(BokiTheme.gradient)
     ) {
-        item {
-            if (isLoading) {
-                CircularProgressIndicator()
-            } else if (error != null) {
-                Text(text = error ?: "Unknown error", color = MaterialTheme.colorScheme.error)
-            } else {
-                UserGreetingSection(
-                    greeting = viewModel.getGreeting(),
-                    userName = SharedPreferencesManager.getFirstName(context)
-                )
-                BalanceOverviewCard(
-                    totalBalance = totalBalance,
-                    currency = mainCurrency,
-                    balanceVisible = balanceVisible,
-                    onToggleVisibility = { balanceVisible = !balanceVisible }
-                )
-                SectionHeader(title = "Accounts")
-
-            }
-        }
-
-        items(viewModel.allAccountSummaries.sortedBy { it.accountType != AccountType.MAIN }) { summary ->
-            AccountCard(
-                account = summary,
-                onClick = onAccountClicked,
-                balanceVisible = balanceVisible
-            )
-        }
-
-        viewModel.mainAccountSummary?.pots?.takeIf { it.isNotEmpty() }?.let { pots ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             item {
-                SectionHeader(title = "Pots")
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    itemsIndexed(pots.sortedBy { it.name.lowercase() }) { index, pot ->
-                        PotCard(
-                            pot = pot,
-                            index = index,
-                            balanceVisible = balanceVisible,
-                            currency = mainCurrency,
-                            onClick = onPotClicked
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = BokiTheme.colors.secondary
                         )
+                    }
+                } else if (error != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = BokiTheme.colors.error.copy(alpha = 0.1f)
+                        ),
+                        shape = BokiTheme.shapes.medium
+                    ) {
+                        Text(
+                            text = error ?: "Unknown error",
+                            color = BokiTheme.colors.error,
+                            modifier = Modifier.padding(16.dp),
+                            style = BokiTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    UserGreetingSection(
+                        greeting = viewModel.getGreeting(),
+                        userName = SharedPreferencesManager.getFirstName(context)
+                    )
+                }
+            }
+
+            if (!isLoading && error == null) {
+                item {
+                    BalanceOverviewCard(
+                        totalBalance = totalBalance,
+                        currency = mainCurrency,
+                        balanceVisible = balanceVisible,
+                        onToggleVisibility = { balanceVisible = !balanceVisible }
+                    )
+                }
+
+                item {
+                    SectionHeader(title = "Accounts")
+                }
+
+                items(viewModel.allAccountSummaries.sortedBy { it.accountType != AccountType.MAIN }) { summary ->
+                    AccountCard(
+                        account = summary,
+                        onClick = onAccountClicked,
+                        balanceVisible = balanceVisible
+                    )
+                }
+
+                viewModel.mainAccountSummary?.pots?.takeIf { it.isNotEmpty() }?.let { pots ->
+                    item {
+                        SectionHeader(title = "Pots")
+                    }
+                    item {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) {
+                            itemsIndexed(pots.sortedBy { it.name.lowercase() }) { index, pot ->
+                                PotCard(
+                                    pot = pot,
+                                    index = index,
+                                    balanceVisible = balanceVisible,
+                                    currency = mainCurrency,
+                                    onClick = onPotClicked
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -117,7 +149,9 @@ fun HomeScreen(
 @Composable
 private fun UserGreetingSection(greeting: String, userName: String) {
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
     ) {
         Text(
             text = "$greeting,",
@@ -141,20 +175,14 @@ private fun BalanceOverviewCard(
     onToggleVisibility: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 12.dp,
-                shape = BokiTheme.shapes.card,
-                ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.2f)
-            ),
-        shape = BokiTheme.shapes.card,
+        modifier = Modifier.fillMaxWidth(),
+        shape = BokiTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(
             containerColor = BokiTheme.colors.cardBackground
         )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(24.dp)
         ) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -178,10 +206,10 @@ private fun BalanceOverviewCard(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = if (balanceVisible) "${totalBalance.setScale(3)} $currency" else "•••••• $currency",
-                style = BokiTheme.typography.displaySmall,
+                style = BokiTheme.typography.balanceDisplay,
                 color = BokiTheme.colors.onBackground,
                 fontWeight = FontWeight.Bold
             )
@@ -214,11 +242,6 @@ private fun AccountCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 8.dp,
-                shape = BokiTheme.shapes.card,
-                ambientColor = BokiTheme.colors.secondary.copy(alpha = 0.1f)
-            )
             .clickable { onClick(account) },
         shape = BokiTheme.shapes.card,
         colors = CardDefaults.cardColors(
@@ -261,11 +284,6 @@ fun PotCard(
     Card(
         modifier = Modifier
             .width(180.dp)
-            .shadow(
-                elevation = 8.dp,
-                shape = BokiTheme.shapes.card,
-                ambientColor = BokiTheme.colors.success.copy(alpha = 0.1f)
-            )
             .clickable { onClick(pot) },
         shape = BokiTheme.shapes.card,
         colors = CardDefaults.cardColors(
