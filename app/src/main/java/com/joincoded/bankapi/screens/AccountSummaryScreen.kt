@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import com.joincoded.bankapi.components.CreateOrEditPotPopup
 import com.joincoded.bankapi.components.TransactionBottomSheet
+import com.joincoded.bankapi.components.TransactionSheetWithFAB
 import com.joincoded.bankapi.components.TransactionSource
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -230,15 +231,16 @@ fun AccountSummaryScreen(viewModel: BankViewModel) {
 
 
         // Transaction Bottom Sheet
-        if (showBottomSheet.value) {
-            TransactionBottomSheet(
-                viewModel = viewModel,
-                onDismiss = {
-                    showBottomSheet.value = false
-                },
-                transactionSource = TransactionSource.ACCOUNT
-            )
-        }
+//        if (showBottomSheet.value) {
+//            TransactionBottomSheet(
+//                viewModel = viewModel,
+//                onDismiss = {
+//                    showBottomSheet.value = false
+//                },
+//                transactionSource = TransactionSource.ACCOUNT
+//            )
+//        }
+        TransactionSheetWithFAB(viewModel, TransactionSource.ACCOUNT)
     }
 }
 

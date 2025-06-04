@@ -21,6 +21,7 @@ import com.joincoded.bankapi.components.TransactionSource
 import com.joincoded.bankapi.components.TransferBetweenPotsDialog
 import com.joincoded.bankapi.components.WithdrawFromPotDialog
 import com.joincoded.bankapi.components.CreateOrEditPotPopup
+import com.joincoded.bankapi.components.TransactionSheetWithFAB
 import com.joincoded.bankapi.ui.theme.BokiTheme
 import com.joincoded.bankapi.data.AllocationType
 import com.joincoded.bankapi.viewmodel.BankViewModel
@@ -299,15 +300,17 @@ fun PotSummaryScreen(
                 }
             )
         }
-        if (showBottomSheet.value) {
-            TransactionBottomSheet(
-                viewModel = viewModel,
-                onDismiss = {
-                    showBottomSheet.value = false
-                },
-                transactionSource = TransactionSource.POT
-            )
-        }
+//        if (showBottomSheet.value) {
+//            TransactionBottomSheet(
+//                viewModel = viewModel,
+//                onDismiss = {
+//                    showBottomSheet.value = false
+//                },
+//                transactionSource = TransactionSource.POT
+//            )
+//        }
+        TransactionSheetWithFAB(viewModel, TransactionSource.POT)
+
     }
 }
 
