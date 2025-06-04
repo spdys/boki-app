@@ -101,8 +101,8 @@ fun TransactionBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState()
     val transactions = when (transactionSource) {
-        TransactionSource.POT -> viewModel.potTransactions ?: emptyList()
-        TransactionSource.ACCOUNT -> viewModel.accountTransactions ?: emptyList()
+        TransactionSource.POT -> viewModel.potTransactions?.reversed() ?: emptyList()
+        TransactionSource.ACCOUNT -> viewModel.accountTransactions?.reversed() ?: emptyList()
     }
     val currency: String = "KWD"
 
