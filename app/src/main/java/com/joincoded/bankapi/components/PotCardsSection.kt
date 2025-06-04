@@ -50,7 +50,7 @@ fun PotCardsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Your Pots",
+                    text = "",
                     style = BokiTheme.typography.titleRegular,
                     color = BokiTheme.colors.onBackground,
                     fontWeight = FontWeight.SemiBold
@@ -159,19 +159,6 @@ private fun PotDebitCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-
-                    // Allocation info
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = getAllocationText(pot.allocationType, pot.allocationValue),
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
                 }
             }
         }
@@ -208,10 +195,10 @@ private fun EmptyPotsState(
 // Helper function
 private fun getAllocationText(allocationType: AllocationType, allocationValue: BigDecimal): String {
     return when (allocationType) {
-        AllocationType.PERCENTAGE -> "${allocationValue.toInt()}% auto-save"
+        AllocationType.PERCENTAGE -> "${allocationValue.toInt()}%"
         AllocationType.FIXED -> {
             val formatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
-            "${formatter.format(allocationValue)} auto-save"
+            "${formatter.format(allocationValue)}"
         }
         else -> "Manual transfers"
     }

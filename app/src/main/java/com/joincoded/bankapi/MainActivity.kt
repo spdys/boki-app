@@ -3,6 +3,7 @@ package com.joincoded.bankapi
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.joincoded.bankapi.ui.theme.BankAPITheme
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joincoded.bankapi.components.AppWithPersistentPotNav
 import com.joincoded.bankapi.data.AccountSummaryDto
 import com.joincoded.bankapi.data.AccountType
 import com.joincoded.bankapi.navigation.AppNavigation
@@ -26,15 +28,20 @@ class MainActivity : ComponentActivity() {
         setContent {
             val bankViewModel: BankViewModel = viewModel()
 
-            BankAPITheme  {
+            BankAPITheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = BokiTheme.colors.background
                 ) { paddingValues ->
-                    AppNavigation(
-                        viewModel = bankViewModel,
-                        modifier = Modifier.padding(paddingValues)
-                    )
+                    AppWithPersistentPotNav(
+                        bankViewModel = bankViewModel
+                    ) {
+                        Box(modifier = Modifier.padding(paddingValues)) {
+                            AppNavigation(
+                                viewModel = bankViewModel
+                            )
+                        }
+                    }
                 }
             }
         }
