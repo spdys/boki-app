@@ -111,7 +111,7 @@ fun TransactionBottomSheet(
         modifier = modifier,
         sheetState = sheetState,
         shape = BokiTheme.shapes.bottomSheet,
-        containerColor = BokiTheme.colors.cardBackground,
+        containerColor = Color(0xFF0B0E34),
         contentColor = BokiTheme.colors.onBackground,
     ) {
         Column(
